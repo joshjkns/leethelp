@@ -114,12 +114,18 @@ submission heatmap, topic breakdowns and recent accepted submissions.
 
 Get the latest `.dmg` from
 [Releases](https://github.com/joshjkns/leethelp/releases) and drag LeetHelp
-into Applications. The build isn't notarised, so the first time you open it,
-right-click the app and choose **Open**. You can also run:
+into Applications.
 
-```sh
-xattr -dr com.apple.quarantine /Applications/LeetHelp.app
-```
+LeetHelp is signed ad-hoc but not notarised by Apple, so macOS blocks it the
+first time you open it. To allow it, either:
+
+- open it once, then go to **System Settings → Privacy & Security** and click
+  **Open Anyway**, or
+- run this in a terminal:
+
+  ```sh
+  xattr -dr com.apple.quarantine /Applications/LeetHelp.app
+  ```
 
 ### Signing in
 
