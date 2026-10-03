@@ -123,6 +123,12 @@ export function login(parent: BrowserWindow): Promise<UserStatus> {
     win.webContents.setUserAgent(CHROME_UA)
     win.loadURL(`${BASE}/accounts/login/`)
 
+    // SSO popups (if any) stay in the same session so their cookies land in our jar.
+    win.webContents.setWindowOpenHandler(() => ({
+      action: 'allow',
+      overrideBrowserWindowOptions: { parent: win, webPreferences: { partition: PARTITION } }
+    }))
+
     let done = false
     const finish = async (): Promise<void> => {
       if (done) return
@@ -131,11 +137,28 @@ export function login(parent: BrowserWindow): Promise<UserStatus> {
       if (!win.isDestroyed()) win.close()
       resolve(await getUser().catch(() => ({ signedIn: false, username: null, avatar: null, premium: false })))
     }
+
+    // LeetCode sets LEETCODE_SESSION *before* login too (e.g. to hold SSO OAuth state),
+    // so only close once the API confirms a signed-in user.
+    let timer: NodeJS.Timeout | null = null
+    const check = (): void => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(async () => {
+        const u = await getUser().catch(() => null)
+        if (u?.signedIn) finish()
+      }, 700)
+    }
     const onCookie = (_e: unknown, cookie: Electron.Cookie, _cause: string, removed: boolean): void => {
-      if (!removed && cookie.name === 'LEETCODE_SESSION' && cookie.value) setTimeout(finish, 600)
+      if (!removed && cookie.name === 'LEETCODE_SESSION' && cookie.value) check()
     }
     ses().cookies.on('changed', onCookie)
-    win.on('closed', finish)
+    win.webContents.on('did-navigate', (_e, url) => {
+      if (url.startsWith(BASE) && !url.includes('/accounts/')) check()
+    })
+    win.on('closed', () => {
+      if (timer) clearTimeout(timer)
+      finish()
+    })
   })
 }
 
