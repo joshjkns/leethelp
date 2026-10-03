@@ -1,7 +1,7 @@
 <!-- LOGO -->
 <h1>
 <p align="center">
-  <img src="docs/icon.png" alt="Logo" width="128">
+  <img src="docs/logo.png" alt="Logo" width="128">
   <br>LeetHelp
 </h1>
   <p align="center">
