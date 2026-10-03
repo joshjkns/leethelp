@@ -1,0 +1,13 @@
+appId: dev.leethelp.app
+productName: LeetHelp
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**
+  - package.json
+mac:
+  category: public.app-category.developer-tools
+  icon: build/icon.png
+  target: [dmg]
+  identity: null
