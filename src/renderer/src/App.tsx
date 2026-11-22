@@ -13,6 +13,7 @@ import { WorkspaceView } from '@/views/WorkspaceView'
 import { GraphView } from '@/views/GraphView'
 import { ProgressView } from '@/views/ProgressView'
 import { ListsView } from '@/views/ListsView'
+import { LearnView } from '@/views/LearnView'
 
 export function App() {
   const init = useApp((s) => s.init)
@@ -47,9 +48,9 @@ export function App() {
       } else if (e.key === ',') {
         e.preventDefault()
         s.setSettingsOpen(true)
-      } else if (['1', '2', '3', '4', '5'].includes(e.key)) {
+      } else if (['1', '2', '3', '4', '5', '6'].includes(e.key)) {
         e.preventDefault()
-        const v = (['problems', 'lists', 'workspace', 'graph', 'progress'] as const)[Number(e.key) - 1]
+        const v = (['problems', 'lists', 'workspace', 'graph', 'progress', 'learn'] as const)[Number(e.key) - 1]
         if (v === 'workspace' && !s.slug) return
         s.setView(v)
       }
@@ -90,6 +91,7 @@ export function App() {
               {view === 'lists' && <ListsView />}
               {view === 'graph' && <GraphView />}
               {view === 'progress' && <ProgressView />}
+              {view === 'learn' && <LearnView />}
             </motion.div>
           )}
         </main>

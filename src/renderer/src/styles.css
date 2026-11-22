@@ -203,3 +203,7 @@ input:focus-visible, textarea:focus-visible, [cmdk-input]:focus-visible, [role='
 .monaco-editor, .monaco-editor .margin, .monaco-editor-background { background-color: transparent !important; }
 .monaco-editor .current-line { border: 0 !important; }
 .monaco-editor .vim-status { font-family: var(--font-mono); }
+
+/* language trainer */
+.trainer-gap { background: var(--accent-soft); border-radius: 3px; }
+.trainer-code { white-space: pre; }

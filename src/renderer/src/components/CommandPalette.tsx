@@ -1,6 +1,6 @@
 import { Command } from 'cmdk'
 import { useMemo, useState } from 'react'
-import { CheckCircle2, CircleDashed, Dice5, LayoutList, ListChecks, Moon, Network, PanelLeft, Search, Settings2, TrendingUp } from 'lucide-react'
+import { CheckCircle2, CircleDashed, Dice5, GraduationCap, LayoutList, ListChecks, Moon, Network, PanelLeft, Search, Settings2, TrendingUp } from 'lucide-react'
 import { useApp } from '@/lib/store'
 import type { ProblemSummary } from '@shared/types'
 import { Dialog } from './ui/dialog'
@@ -104,6 +104,7 @@ export function CommandPalette() {
                 { icon: ListChecks, label: 'Go to Lists', run: () => setView('lists') },
                 { icon: Network, label: 'Explore topic map', run: () => exploreFrom(null) },
                 { icon: TrendingUp, label: 'Go to Progress', run: () => setView('progress') },
+                { icon: GraduationCap, label: 'Learn TypeScript', run: () => setView('learn') },
                 {
                   icon: Moon,
                   label: 'Toggle dark mode',

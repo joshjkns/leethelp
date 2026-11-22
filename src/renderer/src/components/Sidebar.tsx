@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Code2, Flame, LayoutList, ListChecks, LogIn, Network, Search, Settings2, TrendingUp } from 'lucide-react'
+import { Code2, Flame, GraduationCap, LayoutList, ListChecks, LogIn, Network, Search, Settings2, TrendingUp } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useApp, type View } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -15,7 +15,8 @@ const NAV: { view: View; label: string; icon: typeof Code2; key: string }[] = [
   { view: 'lists', label: 'Lists', icon: ListChecks, key: '2' },
   { view: 'workspace', label: 'Workspace', icon: Code2, key: '3' },
   { view: 'graph', label: 'Explore', icon: Network, key: '4' },
-  { view: 'progress', label: 'Progress', icon: TrendingUp, key: '5' }
+  { view: 'progress', label: 'Progress', icon: TrendingUp, key: '5' },
+  { view: 'learn', label: 'Learn', icon: GraduationCap, key: '6' }
 ]
 
 export function Sidebar() {

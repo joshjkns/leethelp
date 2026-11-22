@@ -9,7 +9,7 @@ import {
   type UserStatus
 } from '@shared/types'
 
-export type View = 'problems' | 'lists' | 'workspace' | 'graph' | 'progress'
+export type View = 'problems' | 'lists' | 'workspace' | 'graph' | 'progress' | 'learn'
 
 interface State {
   view: View
