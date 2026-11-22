@@ -1,6 +1,6 @@
-import { session, BrowserWindow, type Session } from 'electron'
+import { session, shell, BrowserWindow, type Session } from 'electron'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { app } from 'electron'
 import type {
   DailyChallenge,
@@ -16,6 +16,13 @@ import type {
 
 const BASE = 'https://leetcode.com'
 const PARTITION = 'persist:leetcode'
+/**
+ * LeetCode's authorize-login page only redirects to the VS Code extension's schemes (anything else
+ * 404s), so we borrow VS Code Insiders' `vscode-insiders://` while a sign-in is pending. We only
+ * claim it when no other app handles it, and release it afterwards.
+ */
+export const AUTH_SCHEME = 'vscode-insiders'
+const AUTH_PATH = 'leetcode.vscode-leetcode'
 export const CHROME_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
 
@@ -109,7 +116,68 @@ export async function getUser(): Promise<UserStatus> {
   }
 }
 
-export function login(parent: BrowserWindow): Promise<UserStatus> {
+// In dev the app runs as `electron <script>`, so the handler registration needs the script path too.
+const dev = !!(process.defaultApp && process.argv[1])
+const devArgs = (): string[] => [resolve(process.argv[1])]
+const isOurs = (): boolean =>
+  dev ? app.isDefaultProtocolClient(AUTH_SCHEME, process.execPath, devArgs()) : app.isDefaultProtocolClient(AUTH_SCHEME)
+
+let schemeClaimed = false
+
+export function releaseAuthScheme(): void {
+  if (schemeClaimed) {
+    if (dev) app.removeAsDefaultProtocolClient(AUTH_SCHEME, process.execPath, devArgs())
+    else app.removeAsDefaultProtocolClient(AUTH_SCHEME)
+  }
+  schemeClaimed = false
+}
+
+/**
+ * Sign in through the user's own browser, where they're usually already logged in (and where
+ * Google/GitHub SSO works). LeetCode's authorize-login page (the one the official VS Code extension
+ * uses) asks them to approve, then redirects to `vscode-insiders://leetcode.vscode-leetcode?cookie=…`,
+ * which macOS hands to us via `open-url` → `handleAuthUrl`.
+ */
+export async function openBrowserLogin(): Promise<void> {
+  const owner = app.getApplicationNameForProtocol(`${AUTH_SCHEME}://`)
+  // Only defer to the real VS Code Insiders. A stale claim from a dev run ("Electron") is fine to take over.
+  if (/insiders|visual studio code/i.test(owner) && !isOurs()) {
+    throw new Error(`Browser sign-in needs ${AUTH_SCHEME}:// links, which ${owner} handles on this Mac. Use Settings → Account instead.`)
+  }
+  const ok = dev
+    ? app.setAsDefaultProtocolClient(AUTH_SCHEME, process.execPath, devArgs())
+    : app.setAsDefaultProtocolClient(AUTH_SCHEME)
+  if (!ok) {
+    throw new Error('Couldn’t register for the sign-in callback. Use Settings → Account instead.')
+  }
+  schemeClaimed = true
+  await shell.openExternal(`${BASE}/authorize-login/${AUTH_SCHEME}/?path=${AUTH_PATH}`)
+}
+
+export const isAuthUrl = (url: string): boolean => url.startsWith(`${AUTH_SCHEME}://`)
+
+/** Handles the sign-in callback URL. Returns null if it isn't one. */
+export async function handleAuthUrl(url: string): Promise<UserStatus | null> {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return null
+  }
+  if (parsed.protocol !== `${AUTH_SCHEME}:`) return null
+  releaseAuthScheme()
+  const header = parsed.searchParams.get('cookie')
+  if (!header) return { signedIn: false, username: null, avatar: null, premium: false }
+  const jar = new Map<string, string>()
+  for (const part of header.split(';')) {
+    const i = part.indexOf('=')
+    if (i > 0) jar.set(part.slice(0, i).trim(), part.slice(i + 1).trim())
+  }
+  return storeCookies(jar)
+}
+
+/** Fallback: sign in inside an app window. Fine for email/password; Google SSO refuses embedded browsers. */
+export function loginWindow(parent: BrowserWindow): Promise<UserStatus> {
   return new Promise((resolve) => {
     const win = new BrowserWindow({
       parent,
@@ -167,10 +235,15 @@ export async function logout(): Promise<void> {
 }
 
 export async function setCookies(sessionToken: string, csrf: string): Promise<UserStatus> {
+  return storeCookies(new Map([['LEETCODE_SESSION', sessionToken.trim()], ['csrftoken', csrf.trim()]]))
+}
+
+async function storeCookies(jar: Map<string, string>): Promise<UserStatus> {
   const expirationDate = Date.now() / 1000 + 60 * 60 * 24 * 14
   const base = { url: BASE, domain: '.leetcode.com', path: '/', secure: true, expirationDate }
-  await ses().cookies.set({ ...base, name: 'LEETCODE_SESSION', value: sessionToken.trim(), httpOnly: true })
-  await ses().cookies.set({ ...base, name: 'csrftoken', value: csrf.trim() })
+  for (const [name, value] of jar) {
+    if (value) await ses().cookies.set({ ...base, name, value, httpOnly: name === 'LEETCODE_SESSION' })
+  }
   return getUser()
 }
 

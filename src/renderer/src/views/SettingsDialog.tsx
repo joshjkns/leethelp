@@ -202,6 +202,7 @@ function EditorSettings() {
 function Account() {
   const user = useApp((s) => s.user)
   const refreshUser = useApp((s) => s.refreshUser)
+  const signIn = useApp((s) => s.signIn)
   const [session, setSession] = useState('')
   const [csrf, setCsrf] = useState('')
   const [saving, setSaving] = useState(false)
@@ -249,18 +250,34 @@ function Account() {
             <LogOut /> Sign out
           </Button>
         ) : (
-          <Button size="sm" variant="primary" onClick={() => window.api.login().then(() => refreshUser())}>
-            Sign in
+          <Button size="sm" variant="primary" onClick={signIn}>
+            Sign in with browser
           </Button>
         )}
       </div>
+
+      {!user.signedIn && (
+        <p className="mt-2 text-xs leading-relaxed text-subtle">
+          Opens leetcode.com in your default browser. Approve access there and you’re signed in here.{' '}
+          <button
+            className="text-muted underline underline-offset-2 hover:text-fg"
+            onClick={async () => {
+              const u = await window.api.loginWindow()
+              if (u.signedIn) toast.success(`Signed in as ${u.username}`)
+              await refreshUser()
+            }}
+          >
+            Use an in-app window instead
+          </button>
+        </p>
+      )}
 
       <div className="mt-6">
         <div className="flex items-center gap-2 text-[13px] font-medium">
           <KeyRound className="size-3.5 text-accent" /> Sign in with cookies
         </div>
         <p className="mt-1 text-xs leading-relaxed text-subtle">
-          If the sign-in window is blocked (e.g. Google/GitHub SSO), copy <code className="text-muted">LEETCODE_SESSION</code> and{' '}
+          If browser sign-in doesn’t work, copy <code className="text-muted">LEETCODE_SESSION</code> and{' '}
           <code className="text-muted">csrftoken</code> from your browser’s DevTools → Application → Cookies on leetcode.com.
         </p>
         <div className="mt-3 space-y-2">

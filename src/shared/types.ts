@@ -242,7 +242,10 @@ export interface AiStatus {
 export interface Api {
   // auth
   getUser(): Promise<UserStatus>
-  login(): Promise<UserStatus>
+  /** Opens LeetCode's authorize page in the default browser; the result arrives via onUserChanged. */
+  login(): Promise<void>
+  /** Fallback: sign in inside an app window (email/password; SSO providers may block it). */
+  loginWindow(): Promise<UserStatus>
   logout(): Promise<void>
   setCookies(session: string, csrf: string): Promise<UserStatus>
   // data
@@ -258,6 +261,8 @@ export interface Api {
   setSettings(patch: Partial<Settings>): Promise<Settings>
   openExternal(url: string): Promise<void>
   onProblemsUpdated(cb: (list: ProblemList) => void): () => void
+  /** Fired when a browser sign-in completes (or fails). */
+  onUserChanged(cb: (user: UserStatus) => void): () => void
   // AI problem generation
   getAiStatus(): Promise<AiStatus>
   setAiKey(key: string | null): Promise<AiStatus>

@@ -129,10 +129,15 @@ first time you open it. To allow it, either:
 
 ### Signing in
 
-Click **Sign in to LeetCode** in the sidebar and log in on the normal
-LeetCode page. LeetHelp picks up the session when you're done. If the
-sign-in window gets blocked (some Google/GitHub SSO flows refuse embedded
-browsers), open **Settings → Account** and paste your `LEETCODE_SESSION` and
+Click **Sign in to LeetCode** in the sidebar. LeetCode opens in your default
+browser, where you're probably already logged in. Click **Authorize** and
+LeetHelp picks up the session. This works with any login method, including
+Google and GitHub. (It uses the authorize page LeetCode built for its VS Code
+extension, so LeetHelp briefly handles `vscode-insiders://` links during
+sign-in. It won't if VS Code Insiders is installed.)
+
+If that doesn't work, open **Settings → Account**. You can sign in in an
+in-app window (email/password), or paste your `LEETCODE_SESSION` and
 `csrftoken` cookies from your browser's DevTools.
 
 Your session stays on your Mac, in the app's own browser partition. It's

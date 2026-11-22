@@ -62,8 +62,9 @@ function registerIpc(): void {
   const send = (channel: string, payload: unknown): void => win?.webContents.send(channel, payload)
 
   ipcMain.handle('user:get', () => lc.getUser())
-  ipcMain.handle('user:login', async () => {
-    const u = await lc.login(win!)
+  ipcMain.handle('user:login', () => lc.openBrowserLogin())
+  ipcMain.handle('user:login-window', async () => {
+    const u = await lc.loginWindow(win!)
     if (u.signedIn) lc.refreshProblems().then((l) => send('problems:updated', l)).catch(() => {})
     return u
   })
@@ -110,6 +111,34 @@ function registerIpc(): void {
   })
 }
 
+// ───────── browser sign-in callback (see lc.openBrowserLogin) ─────────
+
+async function handleUrl(url: string): Promise<void> {
+  await app.whenReady()
+  const u = await lc.handleAuthUrl(url).catch(() => ({ signedIn: false, username: null, avatar: null, premium: false }))
+  if (!u) return
+  if (win) {
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
+  }
+  win?.webContents.send('user:changed', u)
+  if (u.signedIn) lc.refreshProblems().then((l) => win?.webContents.send('problems:updated', l)).catch(() => {})
+}
+
+// macOS delivers links via open-url (also on cold launch, before ready); Windows/Linux start a
+// second instance with the link in argv, so keep one instance and forward it.
+app.on('open-url', (e, url) => {
+  e.preventDefault()
+  handleUrl(url)
+})
+if (!app.requestSingleInstanceLock()) app.quit()
+app.on('second-instance', (_e, argv) => {
+  const url = argv.find(lc.isAuthUrl)
+  if (url) handleUrl(url)
+  else win?.focus()
+})
+
 app.setName('LeetHelp')
 app.whenReady().then(async () => {
   await loadSettings()
@@ -119,6 +148,8 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+app.on('will-quit', () => lc.releaseAuthScheme())
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils'
 import { Kbd } from './ui/kbd'
 import { ProgressRing } from './ProgressRing'
 import { DifficultyPill } from './DifficultyPill'
-import { toast } from 'sonner'
 import { MiniRing } from './MiniRing'
 import { STUDY_LISTS, listProgress, listSlugs } from '@/lib/lists'
 import { useAssistant } from '@/lib/assistant'
@@ -32,17 +31,10 @@ export function Sidebar() {
   const openProblem = useApp((s) => s.openProblem)
   const setPaletteOpen = useApp((s) => s.setPaletteOpen)
   const setSettingsOpen = useApp((s) => s.setSettingsOpen)
-  const refreshUser = useApp((s) => s.refreshUser)
   const current = slug ? bySlug.get(slug) : null
   const dailySolved = daily ? bySlug.get(daily.slug)?.status === 'ac' : false
 
-  const login = async (): Promise<void> => {
-    const u = await window.api.login()
-    if (u.signedIn) {
-      toast.success(`Signed in as ${u.username}`)
-      refreshUser()
-    }
-  }
+  const login = useApp((s) => s.signIn)
 
   return (
     <aside className="drag flex h-full w-[228px] shrink-0 flex-col bg-[var(--sidebar)]" style={{ paddingTop: 'calc(46px * var(--tb, 1))' }}>

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webFrame } from 'electron'
-import type { Api, AssistantEvent, AssistantToolCall, ProblemList } from '@shared/types'
+import type { Api, AssistantEvent, AssistantToolCall, ProblemList, UserStatus } from '@shared/types'
 
 // IPC errors arrive as "Error invoking remote method 'x': Error: msg" — keep just the message.
 const call = <T>(channel: string, ...args: unknown[]): Promise<T> =>
@@ -10,6 +10,7 @@ const call = <T>(channel: string, ...args: unknown[]): Promise<T> =>
 const api: Api = {
   getUser: () => call('user:get'),
   login: () => call('user:login'),
+  loginWindow: () => call('user:login-window'),
   logout: () => call('user:logout'),
   setCookies: (s, c) => call('user:cookies', s, c),
   getProblems: (force) => call('problems:list', force),
@@ -38,6 +39,11 @@ const api: Api = {
     const h = (_e: unknown, c: AssistantToolCall): void => cb(c)
     ipcRenderer.on('assistant:tool', h)
     return () => ipcRenderer.removeListener('assistant:tool', h)
+  },
+  onUserChanged: (cb) => {
+    const h = (_e: unknown, u: UserStatus): void => cb(u)
+    ipcRenderer.on('user:changed', h)
+    return () => ipcRenderer.removeListener('user:changed', h)
   },
   onProblemsUpdated: (cb) => {
     const h = (_e: unknown, l: ProblemList): void => cb(l)

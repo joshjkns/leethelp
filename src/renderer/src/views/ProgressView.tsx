@@ -11,7 +11,6 @@ import { Tooltip } from '@/components/ui/tooltip'
 export function ProgressView() {
   const user = useApp((s) => s.user)
   const profile = useApp((s) => s.profile)
-  const refreshUser = useApp((s) => s.refreshUser)
   const refreshProfile = useApp((s) => s.refreshProfile)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -28,7 +27,7 @@ export function ProgressView() {
           </p>
         </div>
         {!user.signedIn && (
-          <Button variant="primary" size="lg" className="no-drag" onClick={() => window.api.login().then(() => refreshUser())}>
+          <Button variant="primary" size="lg" className="no-drag" onClick={() => useApp.getState().signIn()}>
             <LogIn /> Sign in to LeetCode
           </Button>
         )}

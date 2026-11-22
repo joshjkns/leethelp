@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { toast } from 'sonner'
 import {
   DEFAULT_SETTINGS,
   type DailyChallenge,
@@ -39,6 +40,8 @@ interface State {
   updateSettings: (patch: Partial<Settings>) => void
   setList: (l: ProblemList) => void
   refreshUser: () => Promise<void>
+  /** Starts the browser sign-in; completion arrives through onUserChanged (see init). */
+  signIn: () => Promise<void>
   refreshProfile: () => Promise<void>
   init: () => Promise<void>
 }
@@ -90,6 +93,17 @@ export const useApp = create<State>((set, get) => ({
     else set({ profile: null })
   },
 
+  signIn: async () => {
+    try {
+      await window.api.login()
+      toast('Finish signing in in your browser', {
+        description: 'Click Authorize on leetcode.com and LeetHelp will pick up your session.'
+      })
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  },
+
   refreshProfile: async () => {
     const u = get().user.username
     if (!u) return
@@ -100,6 +114,11 @@ export const useApp = create<State>((set, get) => ({
   init: async () => {
     const settings = await window.api.getSettings()
     set({ settings })
+    window.api.onUserChanged(async (u) => {
+      await get().refreshUser()
+      if (u.signedIn) toast.success(`Signed in as ${u.username}`)
+      else toast.error('LeetCode didn’t sign you in', { description: 'Try again, or paste cookies in Settings → Account.' })
+    })
     window.api.onProblemsUpdated((l) => {
       get().setList(l)
       get().refreshProfile()

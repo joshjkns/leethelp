@@ -15,3 +15,8 @@ mac:
   target: [dmg]
   identity: "-"
   hardenedRuntime: false
+# LeetCode's browser sign-in redirects to vscode-insiders:// (see openBrowserLogin in src/main/leetcode.ts).
+# The app only makes itself the default handler while a sign-in is pending.
+protocols:
+  - name: LeetCode sign-in
+    schemes: [vscode-insiders]

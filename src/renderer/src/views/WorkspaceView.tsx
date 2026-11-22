@@ -23,7 +23,6 @@ export function WorkspaceView() {
   const slug = useApp((s) => s.slug)!
   const settings = useApp((s) => s.settings)
   const user = useApp((s) => s.user)
-  const refreshUser = useApp((s) => s.refreshUser)
   const refreshProfile = useApp((s) => s.refreshProfile)
   const active = useApp((s) => s.view === 'workspace')
 
@@ -90,7 +89,7 @@ export function WorkspaceView() {
     if (!useApp.getState().user.signedIn) {
       toast('Sign in to run code', {
         description: 'Running and submitting go through your LeetCode account.',
-        action: { label: 'Sign in', onClick: () => window.api.login().then(() => refreshUser()) }
+        action: { label: 'Sign in', onClick: () => useApp.getState().signIn() }
       })
       return null
     }
