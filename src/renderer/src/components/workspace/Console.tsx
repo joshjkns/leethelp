@@ -54,7 +54,7 @@ export function Console({
         </>
       }
     >
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      <div className={cn('min-h-0 flex-1 overflow-y-auto px-4 py-3', tab === 'cases' && 'flex flex-col')}>
         {tab === 'cases' ? (
           <CasesEditor detail={detail} cases={cases} setCases={setCases} />
         ) : busy ? (
@@ -143,7 +143,7 @@ function CasesEditor({
   }
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col">
       <CaseTabs
         count={cases.length}
         active={idx}
@@ -157,26 +157,30 @@ function CasesEditor({
           setActive(Math.max(0, idx - (i <= idx ? 1 : 0)))
         }}
       />
-      <div className="space-y-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
         {current.values.map((v, i) => (
-          <Field key={i} label={`${names[i]} =`}>
+          <Field key={i} label={`${names[i]} =`} grow={v.length > 40}>
             <textarea
               value={v}
               spellCheck={false}
               onChange={(e) => update(i, e.target.value)}
-              rows={Math.min(6, v.split('\n').length)}
-              className="w-full resize-none rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-[12.5px] leading-relaxed text-fg outline-none transition-colors focus:border-border-strong"
+              rows={1}
+              className={cn(
+                'block min-h-[38px] w-full resize-none overflow-y-auto rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-[12.5px] leading-relaxed text-fg outline-none transition-colors focus:border-border-strong',
+                v.length > 40 ? 'flex-1' : '[field-sizing:content]'
+              )}
             />
           </Field>
         ))}
       </div>
-    </>
+    </div>
   )
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+/** `grow` fields share the console's spare height; the rest size to their content. */
+function Field({ label, children, grow }: { label: string; children: ReactNode; grow?: boolean }) {
   return (
-    <div>
+    <div className={grow ? 'flex min-h-[64px] flex-1 flex-col' : 'shrink-0'}>
       <div className="mb-1 text-[11.5px] font-medium text-subtle">{label}</div>
       {children}
     </div>

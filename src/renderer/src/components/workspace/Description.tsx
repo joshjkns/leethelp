@@ -26,13 +26,16 @@ export function Description({
   detail,
   error,
   local,
-  actions
+  actions,
+  inset
 }: {
   detail: ProblemDetail | null
   error: string | null
   local?: boolean
   /** Extra buttons for the right of the header. */
   actions?: React.ReactNode
+  /** See Pane. */
+  inset?: boolean
 }) {
   const [tab, setTab] = useState<'desc' | 'related'>('desc')
   const exploreFrom = useApp((s) => s.exploreFrom)
@@ -40,6 +43,7 @@ export function Description({
 
   return (
     <Pane
+      inset={inset}
       header={
         <>
           <PaneTab active={tab === 'desc'} onClick={() => setTab('desc')}>

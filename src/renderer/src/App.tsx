@@ -39,9 +39,10 @@ export function App() {
     const el = document.documentElement
     el.classList.toggle('dark', dark)
     el.classList.toggle('no-vibrancy', !settings.vibrancy)
+    el.classList.toggle('flat-panels', !settings.roundedPanels)
     el.dataset.accent = settings.accent
     el.style.zoom = String(settings.uiScale)
-  }, [dark, settings.accent, settings.vibrancy, settings.uiScale])
+  }, [dark, settings.accent, settings.vibrancy, settings.uiScale, settings.roundedPanels])
 
   // The traffic lights are native and ignore page zoom and the interface scale, so anything placed
   // beside them is sized in screen points: CSS px × --tb. Zooming fires a resize, so recompute then.
@@ -93,12 +94,15 @@ export function App() {
           <Sidebar />
         </motion.div>
         <main className={`relative flex min-w-0 flex-1 flex-col bg-bg ${settings.sidebarHidden ? '' : 'border-l border-border'}`}>
-          {/* With the sidebar hidden, reserve a title-bar strip so content clears the traffic lights. */}
-          {settings.sidebarHidden ? (
+          {/* With the sidebar hidden, reserve a title-bar strip so content clears the traffic lights.
+              The workspaces don't need it: their top-left panel header sits beside the lights instead. */}
+          {settings.sidebarHidden && (view === 'workspace' || view === 'custom') ? (
+            <div className="drag absolute inset-x-0 top-0 h-1" />
+          ) : settings.sidebarHidden ? (
             <div className="drag shrink-0" style={{ height: 'calc(46px * var(--tb, 1))' }} />
-          ) : (
+          ) : settings.roundedPanels || (view !== 'workspace' && view !== 'custom') ? (
             <div className="drag absolute inset-x-0 top-0 h-3" />
-          )}
+          ) : null}
           {/* The workspace stays mounted so the editor, scroll position and console survive view switches. */}
           {slug && (
             <div className={view === 'workspace' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>

@@ -179,7 +179,7 @@ export function WorkspaceView() {
 
   const descPanel = (
     <Panel id="desc" minSize="22" defaultSize="42" className="flex flex-col">
-      <Description detail={detail} error={error} />
+      <Description detail={detail} error={error} inset={settings.sidebarHidden && !settings.swapPanes} />
     </Panel>
   )
   const codePanel = (
@@ -197,6 +197,7 @@ export function WorkspaceView() {
             onSubmit={() => execute('submit').catch(() => {})}
             busy={busy}
             signedIn={user.signedIn}
+            inset={settings.sidebarHidden && settings.swapPanes}
           />
         </Panel>
         <Separator />
@@ -217,7 +218,10 @@ export function WorkspaceView() {
   )
 
   return (
-    <div className="flex min-h-0 flex-1 p-2 pt-3">
+    <div
+      className={settings.roundedPanels ? 'flex min-h-0 flex-1 p-2 pt-3' : 'flex min-h-0 flex-1'}
+      style={settings.sidebarHidden ? { paddingTop: 'max(4px, calc(23.5px * var(--tb, 1) - 20px))' } : undefined}
+    >
       <Group orientation="horizontal" id="ws-outer" defaultLayout={outer.defaultLayout} onLayoutChanged={outer.onLayoutChanged}>
         {settings.swapPanes ? codePanel : descPanel}
         <Separator />

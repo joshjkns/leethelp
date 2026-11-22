@@ -156,6 +156,7 @@ export function CustomWorkspaceView() {
         detail={detail}
         error={null}
         local
+        inset={settings.sidebarHidden && !settings.swapPanes}
         actions={
           chatId && (
             <Tooltip content="Open the chat that made this problem">
@@ -184,6 +185,7 @@ export function CustomWorkspaceView() {
             busy={busy}
             signedIn
             local
+            inset={settings.sidebarHidden && settings.swapPanes}
           />
         </Panel>
         <Separator />
@@ -204,7 +206,10 @@ export function CustomWorkspaceView() {
   )
 
   return (
-    <div className="flex min-h-0 flex-1 p-2 pt-3">
+    <div
+      className={settings.roundedPanels ? 'flex min-h-0 flex-1 p-2 pt-3' : 'flex min-h-0 flex-1'}
+      style={settings.sidebarHidden ? { paddingTop: 'max(4px, calc(23.5px * var(--tb, 1) - 20px))' } : undefined}
+    >
       <Group orientation="horizontal" id="gen-outer" defaultLayout={outer.defaultLayout} onLayoutChanged={outer.onLayoutChanged}>
         {settings.swapPanes ? codePanel : descPanel}
         <Separator />

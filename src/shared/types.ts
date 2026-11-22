@@ -148,6 +148,8 @@ export interface Settings {
   showTagsInList: boolean
   hidePaid: boolean
   swapPanes: boolean
+  /** Rounded corners on the workspace panels (square by default). */
+  roundedPanels: boolean
   uiScale: number
   vibrancy: boolean
   sidebarHidden: boolean
@@ -168,6 +170,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showTagsInList: true,
   hidePaid: false,
   swapPanes: false,
+  roundedPanels: false,
   uiScale: 1,
   vibrancy: true,
   sidebarHidden: false

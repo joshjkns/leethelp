@@ -174,6 +174,7 @@ input:focus-visible, textarea:focus-visible, [cmdk-input]:focus-visible, [role='
 .prose-lc th, .prose-lc td { border: 1px solid var(--border-strong); padding: 4px 10px; }
 
 /* resizable panel handles */
+/* The library sets the separator's flex inline (basis auto), so size it with width/height instead. */
 [data-separator] {
   position: relative;
   flex: 0 0 6px;
@@ -190,11 +191,24 @@ input:focus-visible, textarea:focus-visible, [cmdk-input]:focus-visible, [role='
   opacity: 0;
   transition: opacity 120ms;
 }
+[data-separator][aria-orientation='vertical'] { width: 6px; }
+[data-separator][aria-orientation='horizontal'] { height: 6px; }
 [data-separator][aria-orientation='vertical']::after { width: 2px; height: 32px; }
 [data-separator][aria-orientation='horizontal']::after { height: 2px; width: 32px; }
+/* Flat (square) panels: the separator is a 1px divider line, with a wider invisible grab area. */
+.flat-panels [data-separator] { background: var(--border); }
+.flat-panels [data-separator][aria-orientation='vertical'] { width: 1px; }
+.flat-panels [data-separator][aria-orientation='horizontal'] { height: 1px; }
+.flat-panels [data-separator]::before { content: ''; position: absolute; z-index: 10; }
+.flat-panels [data-separator][aria-orientation='vertical']::before { inset: 0 -3px; }
+.flat-panels [data-separator][aria-orientation='horizontal']::before { inset: -3px 0; }
+.flat-panels [data-separator]::after { display: none; }
+.flat-panels [data-separator]:hover,
+.flat-panels [data-separator][data-separator='active'],
+.flat-panels [data-separator][data-separator='hover'] { background: var(--accent); }
 [data-separator]:hover::after,
-[data-separator][data-separator-state='active']::after,
-[data-separator][data-separator-state='hover']::after { opacity: 1; background: var(--accent); }
+[data-separator][data-separator='active']::after,
+[data-separator][data-separator='hover']::after { opacity: 1; background: var(--accent); }
 
 /* cmdk */
 [cmdk-item][data-selected='true'] { background: var(--surface-2); }
@@ -203,6 +217,8 @@ input:focus-visible, textarea:focus-visible, [cmdk-input]:focus-visible, [role='
 /* monaco cleanup */
 .monaco-editor, .monaco-editor .margin, .monaco-editor-background { background-color: transparent !important; }
 .monaco-editor .current-line { border: 0 !important; }
+/* Relative line numbers: Monaco left-aligns the current line's absolute number; keep it in the column. */
+.monaco-editor .relative-current-line-number { text-align: right !important; }
 .monaco-editor .vim-status { font-family: var(--font-mono); }
 
 /* language trainer */

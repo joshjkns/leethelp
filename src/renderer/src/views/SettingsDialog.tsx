@@ -124,6 +124,9 @@ function Appearance() {
         <Slider value={s.uiScale} min={0.85} max={1.25} step={0.05} onChange={(uiScale) => set({ uiScale })} />
         <span className="w-10 text-right text-xs tabular-nums text-muted">{Math.round(s.uiScale * 100)}%</span>
       </Row>
+      <Row label="Rounded panels" hint="Round the corners of the workspace panels">
+        <Switch checked={s.roundedPanels} onChange={(roundedPanels) => set({ roundedPanels })} />
+      </Row>
       <Row label="Code on the left" hint="Swap the description and editor panes">
         <Switch checked={s.swapPanes} onChange={(swapPanes) => set({ swapPanes })} />
       </Row>

@@ -25,7 +25,8 @@ export function CodeEditor({
   onSubmit,
   busy,
   signedIn,
-  local
+  local,
+  inset
 }: {
   detail: ProblemDetail | null
   lang: string
@@ -39,6 +40,8 @@ export function CodeEditor({
   signedIn: boolean
   /** Judged locally (generated problems) rather than by LeetCode. */
   local?: boolean
+  /** See Pane. */
+  inset?: boolean
 }) {
   const s = useApp((st) => st.settings)
   const dark = useIsDark()
@@ -60,6 +63,7 @@ export function CodeEditor({
 
   return (
     <Pane
+      inset={inset}
       header={
         <>
           <Code2 className="size-3.5 text-accent" />
