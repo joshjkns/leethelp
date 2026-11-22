@@ -83,18 +83,63 @@ A virtualised list of the whole problem set. You can filter by difficulty,
 status and topic, sort by number, difficulty or acceptance, and jump to
 today's daily challenge from the sidebar.
 
+### Lists
+
+NeetCode 150, Blind 75, Grind 75, LeetCode 75 and Top Interview 150, split
+into their topic sections. Each list shows your progress (also in the
+sidebar), a button that opens your next unsolved problem, and a toggle to
+hide the ones you've solved.
+
 ### Progress
 
 When you're signed in, this view shows the same numbers as your profile: the
 solved ring split by difficulty, "beats" percentages, streak, a year-long
 submission heatmap, topic breakdowns and recent accepted submissions.
 
+### Learn
+
+Quick-fire TypeScript drills for interviews, in four decks: syntax, key
+functions (`splice`, `split`, `sort`, `Map`…), logic patterns, and classic
+problems with a piece of the solution missing. Answer with
+<kbd>1</kbd>–<kbd>4</kbd> or by typing. Missing pieces are graded by running
+the tests locally, so any correct code passes. Correct answers build a combo,
+and missed cards come back in a Mistakes deck until you've got each one right
+twice.
+
+### Generated
+
+Original LeetCode-style problems on any topic: statement, examples,
+constraints, hints and 10–15 hidden tests. Each opens in the normal
+workspace, where you write the solution from an empty signature. **Run**
+compares your output with a reference solution on the editable cases, and
+**Submit** runs every hidden test locally. A problem is only saved once its
+reference solution passes all of its own tests; if it doesn't, the failures go
+back to the model for a fix.
+
+### Assistant
+
+A chat panel (<kbd>⌘</kbd> <kbd>J</kbd>) that's part of the app rather than
+beside it. It sees the page and problem you're on, and can search and open
+problems, write new ones and open them, read your code, run it on edge cases,
+submit generated problems, and check your progress and study lists. A single
+conversation can go from "make me a medium interval problem" to working
+through it with hints. By default it coaches rather than solves, and it only
+touches your code when you ask. Drag its left edge to resize it. Every
+problem it writes has a **Chat** button that takes you back to the
+conversation, scrolled to where the problem was made.
+
+Generation and the assistant use your
+[Claude Code](https://docs.claude.com/en/docs/claude-code) login. The Generate
+button can also use an Anthropic API key, stored encrypted in the macOS
+keychain.
+
 ### Customisation
 
 - Light, dark or system theme, plus 8 accent colours
 - A collapsible sidebar (<kbd>⌘</kbd> <kbd>B</kbd>) and a translucent-sidebar
   toggle
-- Interface scale, and an option to put the editor on the left
+- Interface scale, square or rounded workspace panels, and an option to put
+  the editor on the left
 - Editor font, size, ligatures, tab width, **Vim mode**, relative line
   numbers, word wrap and minimap
 - Default language, and options to hide Premium problems or topic tags
@@ -107,7 +152,8 @@ submission heatmap, topic breakdowns and recent accepted submissions.
 | Run sample tests | <kbd>⌘</kbd> <kbd>'</kbd> |
 | Submit | <kbd>⌘</kbd> <kbd>↵</kbd> |
 | Toggle sidebar | <kbd>⌘</kbd> <kbd>B</kbd> |
-| Problems · Workspace · Explore · Progress | <kbd>⌘</kbd> <kbd>1</kbd>–<kbd>4</kbd> |
+| Problems · Lists · Workspace · Explore · Progress · Learn · Generated | <kbd>⌘</kbd> <kbd>1</kbd>–<kbd>7</kbd> |
+| Assistant | <kbd>⌘</kbd> <kbd>J</kbd> |
 | Settings | <kbd>⌘</kbd> <kbd>,</kbd> |
 
 ## Download
