@@ -34,7 +34,7 @@ export async function status(): Promise<AiStatus> {
 
 // ── Claude Code ──
 
-interface Shell {
+export interface Shell {
   bin: string
   /** PATH from a login shell: apps opened from Finder get a minimal one. */
   path: string
@@ -42,7 +42,7 @@ interface Shell {
 let shell: Promise<Shell | null> | null = null
 
 /** Finds the `claude` CLI the way your terminal would, falling back to common install locations. */
-function findClaude(): Promise<Shell | null> {
+export function findClaude(): Promise<Shell | null> {
   return (shell ??= (async () => {
     const sh = process.env.SHELL || '/bin/zsh'
     const fromShell = await new Promise<{ bin: string; path: string } | null>((resolve) =>

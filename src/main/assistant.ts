@@ -3,12 +3,11 @@
 // the editor, Run, generated problems, progress) and sends back a result.
 import { app } from 'electron'
 import { randomUUID } from 'node:crypto'
-import { existsSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
-import { dirname, join, sep } from 'node:path'
+import { join } from 'node:path'
 import { z } from 'zod'
 import type { AssistantEvent, AssistantSendRequest, AssistantToolResult } from '@shared/types'
-import { Problem, SYSTEM as PROBLEM_GUIDE } from './ai'
+import { Problem, SYSTEM as PROBLEM_GUIDE, findClaude } from './ai'
 
 type Send = (channel: string, payload: unknown) => void
 
@@ -122,18 +121,6 @@ export function stop(chatId: string): void {
   running.get(chatId)?.abort()
 }
 
-/** In the packaged app the SDK's bundled `claude` binary is unpacked beside the asar archive. */
-function claudeBinary(): string | undefined {
-  if (!app.isPackaged) return undefined
-  try {
-    const pkg = require.resolve(`@anthropic-ai/claude-agent-sdk-${process.platform}-${process.arch}/package.json`)
-    const bin = join(dirname(pkg), 'claude').replace(`app.asar${sep}`, `app.asar.unpacked${sep}`)
-    return existsSync(bin) ? bin : undefined
-  } catch {
-    return undefined
-  }
-}
-
 function friendly(msg: string): string {
   if (/not logged in|\/login|authenticat|invalid api key/i.test(msg))
     return 'Claude Code isn’t signed in. Run `claude` in a terminal and log in, then try again.'
@@ -161,7 +148,8 @@ export async function send(req: AssistantSendRequest, sendToRenderer: Send): Pro
     })
     const cwd = join(app.getPath('userData'), 'assistant')
     await mkdir(cwd, { recursive: true })
-    const bin = claudeBinary()
+    const cli = await findClaude()
+    if (!cli) throw new Error('The assistant needs Claude Code. Install it from claude.com/claude-code, run `claude` once to log in, then try again.')
 
     // Custom tools need streaming input.
     async function* prompt() {
@@ -184,7 +172,9 @@ export async function send(req: AssistantSendRequest, sendToRenderer: Send): Pro
         maxTurns: 40,
         cwd,
         abortController: ac,
-        ...(bin ? { pathToClaudeCodeExecutable: bin } : {})
+        // Your installed Claude Code CLI (and its login); the SDK's own binary isn't bundled.
+        pathToClaudeCodeExecutable: cli.bin,
+        env: { ...process.env, PATH: cli.path }
       }
     })
 

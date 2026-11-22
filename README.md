@@ -128,10 +128,10 @@ touches your code when you ask. Drag its left edge to resize it. Every
 problem it writes has a **Chat** button that takes you back to the
 conversation, scrolled to where the problem was made.
 
-Generation and the assistant use your
-[Claude Code](https://docs.claude.com/en/docs/claude-code) login. The Generate
-button can also use an Anthropic API key, stored encrypted in the macOS
-keychain.
+Generation and the assistant run your installed
+[Claude Code](https://docs.claude.com/en/docs/claude-code) CLI with its login,
+so install it and run `claude` once to sign in. The Generate button can also
+use an Anthropic API key, stored encrypted with the system keychain.
 
 ### Customisation
 
