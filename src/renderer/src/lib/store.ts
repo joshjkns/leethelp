@@ -9,11 +9,12 @@ import {
   type UserStatus
 } from '@shared/types'
 
-export type View = 'problems' | 'workspace' | 'graph' | 'progress'
+export type View = 'problems' | 'lists' | 'workspace' | 'graph' | 'progress'
 
 interface State {
   view: View
   slug: string | null
+  listId: string
   graphSeed: string | null
   settingsOpen: boolean
   paletteOpen: boolean
@@ -28,6 +29,7 @@ interface State {
 
   setView: (v: View) => void
   openProblem: (slug: string) => void
+  openList: (id: string) => void
   exploreFrom: (slug: string | null) => void
   setSettingsOpen: (o: boolean) => void
   setPaletteOpen: (o: boolean) => void
@@ -43,6 +45,7 @@ const SIGNED_OUT: UserStatus = { signedIn: false, username: null, avatar: null, 
 export const useApp = create<State>((set, get) => ({
   view: 'problems',
   slug: localStorage.getItem('lastSlug'),
+  listId: localStorage.getItem('lastList') ?? 'neetcode150',
   graphSeed: null,
   settingsOpen: false,
   paletteOpen: false,
@@ -59,6 +62,10 @@ export const useApp = create<State>((set, get) => ({
   openProblem: (slug) => {
     localStorage.setItem('lastSlug', slug)
     set({ slug, view: 'workspace', paletteOpen: false })
+  },
+  openList: (listId) => {
+    localStorage.setItem('lastList', listId)
+    set({ listId, view: 'lists' })
   },
   exploreFrom: (slug) => set({ graphSeed: slug, view: 'graph', paletteOpen: false }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),

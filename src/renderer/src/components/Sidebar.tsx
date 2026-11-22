@@ -1,4 +1,5 @@
-import { Code2, Flame, LayoutList, LogIn, Network, Search, Settings2, TrendingUp } from 'lucide-react'
+import { useMemo } from 'react'
+import { Code2, Flame, LayoutList, ListChecks, LogIn, Network, Search, Settings2, TrendingUp } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useApp, type View } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -6,12 +7,15 @@ import { Kbd } from './ui/kbd'
 import { ProgressRing } from './ProgressRing'
 import { DifficultyPill } from './DifficultyPill'
 import { toast } from 'sonner'
+import { MiniRing } from './MiniRing'
+import { STUDY_LISTS, listProgress, listSlugs } from '@/lib/lists'
 
 const NAV: { view: View; label: string; icon: typeof Code2; key: string }[] = [
   { view: 'problems', label: 'Problems', icon: LayoutList, key: '1' },
-  { view: 'workspace', label: 'Workspace', icon: Code2, key: '2' },
-  { view: 'graph', label: 'Explore', icon: Network, key: '3' },
-  { view: 'progress', label: 'Progress', icon: TrendingUp, key: '4' }
+  { view: 'lists', label: 'Lists', icon: ListChecks, key: '2' },
+  { view: 'workspace', label: 'Workspace', icon: Code2, key: '3' },
+  { view: 'graph', label: 'Explore', icon: Network, key: '4' },
+  { view: 'progress', label: 'Progress', icon: TrendingUp, key: '5' }
 ]
 
 export function Sidebar() {
@@ -86,6 +90,9 @@ export function Sidebar() {
         })}
       </nav>
 
+      <div className="min-h-0 flex-1 overflow-y-auto pb-3 [scrollbar-width:none]">
+      <StudyLists />
+
       {daily && (
         <div className="no-drag mx-3 mt-6">
           <div className="mb-1.5 px-1 text-[11px] font-medium uppercase tracking-wider text-subtle">Daily</div>
@@ -105,7 +112,7 @@ export function Sidebar() {
         </div>
       )}
 
-      <div className="flex-1" />
+      </div>
 
       <div className="no-drag border-t border-border p-3">
         {user.signedIn && profile ? (
@@ -141,5 +148,39 @@ export function Sidebar() {
         </button>
       </div>
     </aside>
+  )
+}
+
+function StudyLists() {
+  const view = useApp((s) => s.view)
+  const listId = useApp((s) => s.listId)
+  const openList = useApp((s) => s.openList)
+  const bySlug = useApp((s) => s.bySlug)
+  const progress = useMemo(() => STUDY_LISTS.map((l) => listProgress(listSlugs(l), bySlug)), [bySlug])
+
+  return (
+    <div className="no-drag mx-2 mt-6">
+      <div className="mb-1 px-2 text-[11px] font-medium uppercase tracking-wider text-subtle">Study lists</div>
+      {STUDY_LISTS.map((l, i) => {
+        const { solved, total } = progress[i]
+        const active = view === 'lists' && listId === l.id
+        return (
+          <button
+            key={l.id}
+            onClick={() => openList(l.id)}
+            className={cn(
+              'flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors',
+              active ? 'bg-surface/70 text-fg' : 'text-muted hover:text-fg'
+            )}
+          >
+            <MiniRing value={solved / total} size={16} stroke={2.5} />
+            <span className="flex-1 truncate text-left">{l.name}</span>
+            <span className="text-[11px] tabular-nums text-subtle">
+              {solved}/{total}
+            </span>
+          </button>
+        )
+      })}
+    </div>
   )
 }
