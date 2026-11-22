@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, KeyRound, Loader2, Sparkles, TriangleAlert } from 'lucide-react'
-import type { AiStatus, Difficulty } from '@shared/types'
+import type { AiStatus, Difficulty, ModelChoice } from '@shared/types'
+import { ModelPicker } from '@/components/ModelPicker'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/controls'
@@ -15,6 +16,8 @@ export function GenerateDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   const add = useCustomProblems((s) => s.add)
   const openCustom = useApp((s) => s.openCustom)
   const [status, setStatus] = useState<AiStatus | null>(null)
+  const model = useApp((s) => s.settings.generateModel)
+  const updateSettings = useApp((s) => s.updateSettings)
   const [keyInput, setKeyInput] = useState('')
   const [topic, setTopic] = useState('')
   const [difficulty, setDifficulty] = useState<Difficulty>('Medium')
@@ -28,6 +31,12 @@ export function GenerateDialog({ open, onOpenChange }: { open: boolean; onOpenCh
     setError(null)
     window.api.getAiStatus().then(setStatus).catch(() => setStatus({ claudeCode: false, key: null, using: null }))
   }, [open])
+
+  const changeModel = async (generateModel: ModelChoice): Promise<void> => {
+    updateSettings({ generateModel })
+    await window.api.setSettings({ generateModel })
+    setStatus(await window.api.getAiStatus().catch(() => null))
+  }
 
   const saveKey = async (key: string | null): Promise<void> => {
     setError(null)
@@ -64,12 +73,20 @@ export function GenerateDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           Generate a problem
         </div>
         <p className="mt-1 text-[12.5px] leading-relaxed text-muted">
-          Claude writes an original LeetCode-style problem with examples, constraints, hints and hidden tests, then it opens in the
+          The model you pick writes an original LeetCode-style problem with examples, constraints, hints and hidden tests, then it opens in the
           workspace for you to solve from scratch. It's only saved once its reference solution passes all of its tests. Takes a
           minute or two.
         </p>
 
-        {status?.using === null ? (
+        {status?.using === null && model.provider === 'codex' ? (
+          <div className="mt-5 rounded-xl border border-border bg-surface-2/50 p-4 text-[12.5px] leading-relaxed text-muted">
+            Codex isn't installed. Install the Codex CLI and run <code className="font-mono">codex</code> once to sign in, then reopen
+            this, or pick a Claude model instead.
+            <div className="mt-3">
+              <ModelPicker value={model} onChange={(m) => void changeModel(m)} variant="field" side="bottom" />
+            </div>
+          </div>
+        ) : status?.using === null ? (
           <form
             className="mt-5"
             onSubmit={(e) => {
@@ -156,8 +173,13 @@ export function GenerateDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             {stage && <Progress stage={stage} />}
 
             <div className="mt-4 flex items-center gap-1.5 text-[11.5px] text-subtle">
+              <div className="-ml-1.5">
+                <ModelPicker value={model} onChange={(m) => void changeModel(m)} side="bottom" />
+              </div>
               <Check className="size-3 text-easy" />
-              {status?.using === 'claude-code'
+              {status?.using === 'codex'
+                ? 'Using your Codex login'
+                : status?.using === 'claude-code'
                 ? 'Using your Claude Code login'
                 : status?.key === 'env'
                   ? 'Using ANTHROPIC_API_KEY from the environment'

@@ -133,6 +133,40 @@ export interface RunResult {
 export type Theme = 'system' | 'light' | 'dark'
 export type Accent = 'amber' | 'orange' | 'emerald' | 'sky' | 'indigo' | 'violet' | 'rose' | 'zinc'
 
+/** Which installed agent CLI runs the assistant or generation. */
+export type Provider = 'claude' | 'codex'
+
+/** A model pick: the provider, its model id and a reasoning effort it supports. */
+export interface ModelChoice {
+  provider: Provider
+  model: string
+  effort: string
+}
+
+export interface ModelOption {
+  id: string
+  label: string
+  description: string
+  efforts: string[]
+  defaultEffort: string
+  /** An older model: listed under "More models". */
+  legacy?: boolean
+}
+
+export interface ProviderInfo {
+  id: Provider
+  label: string
+  /** The CLI was found. */
+  installed: boolean
+  /** Has a usable login; null when it can't be checked without running it. */
+  signedIn: boolean | null
+  models: ModelOption[]
+  /** Why the models couldn't be listed, if they couldn't. */
+  error?: string
+}
+
+export type ModelCatalog = Record<Provider, ProviderInfo>
+
 export interface Settings {
   theme: Theme
   accent: Accent
@@ -153,6 +187,10 @@ export interface Settings {
   uiScale: number
   vibrancy: boolean
   sidebarHidden: boolean
+  /** The assistant's default model for new chats; each chat keeps its own after that. */
+  assistantModel: ModelChoice
+  /** The model the Generate button uses. */
+  generateModel: ModelChoice
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -173,7 +211,9 @@ export const DEFAULT_SETTINGS: Settings = {
   roundedPanels: false,
   uiScale: 1,
   vibrancy: true,
-  sidebarHidden: false
+  sidebarHidden: false,
+  assistantModel: { provider: 'claude', model: 'claude-opus-5-5', effort: 'medium' },
+  generateModel: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' }
 }
 
 /** What to generate a practice problem about. */
@@ -229,8 +269,11 @@ export interface AssistantToolResult {
 export interface AssistantSendRequest {
   chatId: string
   message: string
-  /** Resume this Claude session so the conversation keeps its memory. */
+  /** Resume this session (a Claude session or a Codex thread) so the conversation keeps its memory. */
   sessionId?: string
+  model: ModelChoice
+  /** The conversation so far, when it moves to a provider that can't resume the old session. */
+  history?: string
 }
 
 export interface AiStatus {
@@ -238,8 +281,8 @@ export interface AiStatus {
   claudeCode: boolean
   /** Where an Anthropic API key comes from: saved in the app (encrypted), the environment, or nowhere. */
   key: 'saved' | 'env' | null
-  /** What a generation will actually use. */
-  using: 'claude-code' | 'api' | null
+  /** What a generation will actually use, given the model picked in Settings. */
+  using: 'claude-code' | 'api' | 'codex' | null
 }
 
 export interface Api {
@@ -272,6 +315,8 @@ export interface Api {
   getAiStatus(): Promise<AiStatus>
   setAiKey(key: string | null): Promise<AiStatus>
   generateProblem(req: GenerateProblemRequest): Promise<GeneratedProblem>
+  /** Installed providers and their models (Codex's list comes from the CLI). */
+  getModels(refresh?: boolean): Promise<ModelCatalog>
   /** Chromium page zoom (⌘+ / ⌘−), separate from the app's own interface scale. */
   getZoomFactor(): number
   assistantSend(req: AssistantSendRequest): Promise<void>

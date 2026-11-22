@@ -5,6 +5,8 @@ import { DEFAULT_SETTINGS, type Settings } from '@shared/types'
 import * as lc from './leetcode'
 import * as ai from './ai'
 import * as assistant from './assistant'
+import * as models from './models'
+import * as codex from './codex'
 
 let win: BrowserWindow | null = null
 const mac = process.platform === 'darwin'
@@ -107,11 +109,12 @@ function registerIpc(): void {
     await writeFile(settingsPath(), JSON.stringify(settings, null, 2))
     return settings
   })
-  ipcMain.handle('ai:status', () => ai.status())
-  ipcMain.handle('ai:key', (_e, key: string | null) => ai.setKey(key))
-  ipcMain.handle('ai:generate', (_e, req) => ai.generate(req))
+  ipcMain.handle('ai:status', () => ai.status(settings.generateModel))
+  ipcMain.handle('ai:models', (_e, refresh?: boolean) => models.catalog(refresh))
+  ipcMain.handle('ai:key', (_e, key: string | null) => ai.setKey(key, settings.generateModel))
+  ipcMain.handle('ai:generate', async (_e, req) => ai.generate(req, await models.resolve(settings.generateModel)))
   // The chat runs in the background and streams events; the call returns straight away.
-  ipcMain.handle('assistant:send', (_e, req) => void assistant.send(req, send))
+  ipcMain.handle('assistant:send', async (_e, req) => void assistant.send({ ...req, model: await models.resolve(req.model) }, send))
   ipcMain.handle('assistant:stop', (_e, chatId: string) => assistant.stop(chatId))
   ipcMain.handle('assistant:tool-result', (_e, callId: string, result) => assistant.toolResult(callId, result))
   ipcMain.handle('shell:open', (_e, url: string) => {
@@ -157,7 +160,10 @@ app.whenReady().then(async () => {
   })
 })
 
-app.on('will-quit', () => lc.releaseAuthScheme())
+app.on('will-quit', () => {
+  lc.releaseAuthScheme()
+  codex.shutdown()
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

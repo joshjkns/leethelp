@@ -28,6 +28,7 @@ const api: Api = {
   getAiStatus: () => call('ai:status'),
   setAiKey: (key) => call('ai:key', key),
   generateProblem: (req) => call('ai:generate', req),
+  getModels: (refresh) => call('ai:models', refresh),
   assistantSend: (req) => call('assistant:send', req),
   assistantStop: (chatId) => call('assistant:stop', chatId),
   assistantToolResult: (callId, result) => call('assistant:tool-result', callId, result),

@@ -26,6 +26,7 @@ import { Kbd } from '../ui/kbd'
 import { Tooltip } from '../ui/tooltip'
 import { DifficultyPill } from '../DifficultyPill'
 import { Markdown } from './Markdown'
+import { ModelPicker } from '../ModelPicker'
 
 // ── Width (drag the left edge) ──
 
@@ -431,6 +432,10 @@ function Composer({ inputRef }: { inputRef: React.RefObject<HTMLTextAreaElement 
   const running = useAssistant((s) => s.running)
   const send = useAssistant((s) => s.send)
   const stop = useAssistant((s) => s.stop)
+  const setModel = useAssistant((s) => s.setModel)
+  const threadModel = useAssistant((s) => s.threads.find((t) => t.id === s.activeId)?.model)
+  const defaultModel = useApp((s) => s.settings.assistantModel)
+  const model = threadModel ?? defaultModel
   const view = useApp((s) => s.view)
   const slug = useApp((s) => s.slug)
   const customId = useApp((s) => s.customId)
@@ -468,7 +473,11 @@ function Composer({ inputRef }: { inputRef: React.RefObject<HTMLTextAreaElement 
           placeholder={ws ? 'Ask about this problem…' : 'Ask anything, or ask for a problem…'}
           className="block max-h-40 w-full resize-none bg-transparent px-3.5 pt-3 text-[13px] leading-relaxed outline-none placeholder:text-subtle"
         />
-        <div className="flex items-center gap-2 px-2.5 pb-2 pt-1">
+        <div className="flex items-center gap-1.5 px-1.5 pb-2 pt-1 pr-2.5">
+          <div className="min-w-0 shrink">
+            <ModelPicker value={model} onChange={setModel} />
+          </div>
+          <span className="h-3 w-px shrink-0 bg-border" />
           <span className="flex min-w-0 flex-1 items-center gap-1 truncate text-[11px] text-subtle">
             {ws ? (
               <>

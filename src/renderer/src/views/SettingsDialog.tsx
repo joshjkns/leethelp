@@ -1,5 +1,7 @@
-import { useState, type ReactNode } from 'react'
-import { Check, Code2, KeyRound, LogOut, Monitor, Moon, Palette, Sun, UserRound, X } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Check, Code2, ExternalLink, KeyRound, LogOut, Monitor, Moon, Palette, Sparkles, Sun, UserRound, X } from 'lucide-react'
+import { ModelPicker, ProviderIcon } from '@/components/ModelPicker'
+import { PROVIDERS, useModels } from '@/lib/models'
 import { toast } from 'sonner'
 import { useApp } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -20,7 +22,7 @@ const ACCENTS: { value: Accent; color: string }[] = [
   { value: 'zinc', color: '#a1a1aa' }
 ]
 
-type Section = 'appearance' | 'editor' | 'account'
+type Section = 'appearance' | 'editor' | 'models' | 'account'
 
 export function SettingsDialog() {
   const open = useApp((s) => s.settingsOpen)
@@ -35,6 +37,7 @@ export function SettingsDialog() {
           [
             ['appearance', 'Appearance', Palette],
             ['editor', 'Editor', Code2],
+            ['models', 'Models', Sparkles],
             ['account', 'Account', UserRound]
           ] as const
         ).map(([id, label, Icon]) => (
@@ -57,6 +60,7 @@ export function SettingsDialog() {
         </button>
         {section === 'appearance' && <Appearance />}
         {section === 'editor' && <EditorSettings />}
+        {section === 'models' && <Models />}
         {section === 'account' && <Account />}
       </div>
     </Dialog>
@@ -77,6 +81,54 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
 
 function H({ children }: { children: ReactNode }) {
   return <h2 className="mb-3 text-[17px] font-semibold tracking-tight">{children}</h2>
+}
+
+function Models() {
+  const s = useApp((st) => st.settings)
+  const set = useApp((st) => st.updateSettings)
+  const catalog = useModels((st) => st.catalog)
+  const load = useModels((st) => st.load)
+  useEffect(() => {
+    void load(true)
+  }, [load])
+  return (
+    <>
+      <H>Models</H>
+      <p className="-mt-1 mb-3 text-xs leading-relaxed text-subtle">
+        Generated problems and the assistant run on the agent CLIs installed on this computer, with their own logins. Nothing is sent
+        anywhere else.
+      </p>
+      {PROVIDERS.map((p) => {
+        const info = catalog?.[p.id]
+        const state = !info
+          ? 'Checking…'
+          : !info.installed
+            ? 'Not installed'
+            : info.error
+              ? info.error
+              : info.signedIn === false
+                ? `Installed, not signed in: run ${p.id} login`
+                : `Installed · ${info.models.length} models`
+        return (
+          <Row key={p.id} label={p.id === 'claude' ? 'Claude Code' : 'Codex'} hint={state}>
+            <ProviderIcon provider={p.id} className="size-4" />
+            {info && !info.installed && (
+              <Button size="sm" onClick={() => window.api.openExternal(p.url)}>
+                Install <ExternalLink />
+              </Button>
+            )}
+          </Row>
+        )
+      })}
+      <div className="mt-6" />
+      <Row label="Assistant" hint="Default for new chats. Change it per chat from the assistant's input.">
+        <ModelPicker value={s.assistantModel} onChange={(assistantModel) => set({ assistantModel })} variant="field" side="bottom" align="end" />
+      </Row>
+      <Row label="Generate problems" hint="Used by the Generate button.">
+        <ModelPicker value={s.generateModel} onChange={(generateModel) => set({ generateModel })} variant="field" side="bottom" align="end" />
+      </Row>
+    </>
+  )
 }
 
 function Appearance() {

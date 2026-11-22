@@ -1,17 +1,19 @@
-// The in-app assistant: a Claude Agent SDK loop using your Claude Code login. Its tools are
-// forwarded to the renderer, which carries them out against the live app (the open problem,
-// the editor, Run, generated problems, progress) and sends back a result.
+// The in-app assistant: an agent loop on your installed Claude Code (through the Claude Agent SDK)
+// or Codex (through its app-server), whichever model the chat uses. Its tools are forwarded to the
+// renderer, which carries them out against the live app (the open problem, the editor, Run,
+// generated problems, progress) and sends back a result.
 import { app } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
 import type { AssistantEvent, AssistantSendRequest, AssistantToolResult } from '@shared/types'
-import { Problem, SYSTEM as PROBLEM_GUIDE, findClaude } from './ai'
+import { Problem, SYSTEM as PROBLEM_GUIDE } from './ai'
+import { findClaude } from './cli'
+import { QUIET_CONFIG, codex, declined } from './codex'
+import { codexError } from './ai'
 
 type Send = (channel: string, payload: unknown) => void
-
-const MODEL = 'claude-opus-5-5'
 
 const SYSTEM = `You are the assistant inside LeetHelp, a desktop LeetCode client. The user is preparing for coding interviews and solves problems in TypeScript. You are a sharp, friendly interview coach.
 
@@ -95,22 +97,28 @@ export function toolResult(callId: string, result: AssistantToolResult): void {
   pending.get(callId)?.(result)
 }
 
-function forward(send: Send, chatId: string, signal: AbortSignal, name: string) {
-  return async (input: Record<string, unknown>) => {
-    const callId = randomUUID()
-    const r = await new Promise<AssistantToolResult>((resolve) => {
-      const onAbort = (): void => finish({ text: 'Stopped by the user.', isError: true })
-      const finish = (res: AssistantToolResult): void => {
-        pending.delete(callId)
-        signal.removeEventListener('abort', onAbort)
-        resolve(res)
-      }
-      signal.addEventListener('abort', onAbort, { once: true })
-      pending.set(callId, finish)
-      send('assistant:tool', { chatId, callId, name, input })
-    })
-    return { content: [{ type: 'text' as const, text: r.text }], isError: r.isError }
-  }
+function callTool(send: Send, chatId: string, signal: AbortSignal, name: string, input: Record<string, unknown>): Promise<AssistantToolResult> {
+  const callId = randomUUID()
+  return new Promise<AssistantToolResult>((resolve) => {
+    if (!(name in TOOLS)) return resolve({ text: `Unknown tool: ${name}`, isError: true })
+    const onAbort = (): void => finish({ text: 'Stopped by the user.', isError: true })
+    const finish = (res: AssistantToolResult): void => {
+      pending.delete(callId)
+      signal.removeEventListener('abort', onAbort)
+      resolve(res)
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+    pending.set(callId, finish)
+    send('assistant:tool', { chatId, callId, name, input })
+  })
+}
+
+/** The tools as Codex dynamic tools: plain JSON schemas. */
+function codexTools(): unknown[] {
+  return Object.entries(TOOLS).map(([name, [description, shape]]) => {
+    const { $schema: _, ...inputSchema } = z.toJSONSchema(z.object(shape)) as Record<string, unknown>
+    return { type: 'function', name, description, inputSchema }
+  })
 }
 
 // ── Chats ──
@@ -120,6 +128,12 @@ const running = new Map<string, AbortController>()
 export function stop(chatId: string): void {
   running.get(chatId)?.abort()
 }
+
+type Emit = (event: AssistantEvent) => void
+
+/** The message the model sees: the conversation so far if it changed provider, then this turn. */
+const turnText = (req: AssistantSendRequest): string =>
+  req.history ? `Earlier in this chat (with another model):\n${req.history}\n\n---\n\n${req.message}` : req.message
 
 function friendly(msg: string): string {
   if (/not logged in|\/login|authenticat|invalid api key/i.test(msg))
@@ -140,11 +154,32 @@ export async function send(req: AssistantSendRequest, sendToRenderer: Send): Pro
   }
 
   try {
+    if (req.model.provider === 'codex') await sendCodex(req, sendToRenderer, emit, ac)
+    else await sendClaude(req, sendToRenderer, emit, ac)
+    emit({ type: 'done' })
+  } catch (e) {
+    const msg = (e as Error).message
+    emit({ type: 'done', error: ac.signal.aborted ? 'stopped' : req.model.provider === 'codex' ? codexError(msg) : friendly(msg) })
+  } finally {
+    if (running.get(chatId) === ac) running.delete(chatId)
+  }
+}
+
+// ── Claude Code ──
+
+async function sendClaude(req: AssistantSendRequest, sendToRenderer: Send, emit: Emit, ac: AbortController): Promise<void> {
+  const { chatId } = req
+  {
     const { query, tool, createSdkMcpServer } = await import('@anthropic-ai/claude-agent-sdk')
     const server = createSdkMcpServer({
       name: 'leethelp',
       version: '1.0.0',
-      tools: Object.entries(TOOLS).map(([name, [desc, shape]]) => tool(name, desc, shape, forward(sendToRenderer, chatId, ac.signal, name)))
+      tools: Object.entries(TOOLS).map(([name, [desc, shape]]) =>
+        tool(name, desc, shape, async (input: Record<string, unknown>) => {
+          const r = await callTool(sendToRenderer, chatId, ac.signal, name, input)
+          return { content: [{ type: 'text' as const, text: r.text }], isError: r.isError }
+        })
+      )
     })
     const cwd = join(app.getPath('userData'), 'assistant')
     await mkdir(cwd, { recursive: true })
@@ -153,14 +188,14 @@ export async function send(req: AssistantSendRequest, sendToRenderer: Send): Pro
 
     // Custom tools need streaming input.
     async function* prompt() {
-      yield { type: 'user' as const, message: { role: 'user' as const, content: req.message }, parent_tool_use_id: null, session_id: '' }
+      yield { type: 'user' as const, message: { role: 'user' as const, content: turnText(req) }, parent_tool_use_id: null, session_id: '' }
     }
 
     const q = query({
       prompt: prompt(),
       options: {
-        model: MODEL,
-        effort: 'medium',
+        model: req.model.model,
+        ...(req.model.effort ? { effort: req.model.effort as 'medium' } : {}),
         systemPrompt: SYSTEM,
         mcpServers: { leethelp: server },
         // No built-in tools (files, shell, web): only the app's own.
@@ -200,10 +235,80 @@ export async function send(req: AssistantSendRequest, sendToRenderer: Send): Pro
         emit({ type: 'done', costUsd: m.total_cost_usd, error })
       }
     }
-    emit({ type: 'done' })
-  } catch (e) {
-    emit({ type: 'done', error: ac.signal.aborted ? 'stopped' : friendly((e as Error).message) })
+  }
+}
+
+// ── Codex ──
+
+async function sendCodex(req: AssistantSendRequest, sendToRenderer: Send, emit: Emit, ac: AbortController): Promise<void> {
+  const s = await codex()
+  const cwd = join(app.getPath('userData'), 'assistant')
+  await mkdir(cwd, { recursive: true })
+  // Codex's own shell can only read (and there's nothing in this folder); approvals are never asked.
+  const common = { cwd, model: req.model.model, approvalPolicy: 'never', sandbox: 'read-only', config: QUIET_CONFIG }
+  let threadId = ''
+  if (req.sessionId) {
+    try {
+      const r = await s.request<{ thread: { id: string } }>('thread/resume', { threadId: req.sessionId, ...common, excludeTurns: true })
+      threadId = r.thread.id
+    } catch {
+      // The thread is gone (deleted or from another machine): start a fresh one.
+    }
+  }
+  if (!threadId) {
+    const r = await s.request<{ thread: { id: string } }>('thread/start', { ...common, baseInstructions: SYSTEM, dynamicTools: codexTools() })
+    threadId = r.thread.id
+  }
+  emit({ type: 'session', id: threadId })
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      let turnId: string | null = null
+      let sawText = false
+      let lastError: string | null = null
+      const interrupt = (): void => {
+        if (turnId) s.request('turn/interrupt', { threadId, turnId }).catch(() => {})
+      }
+      ac.signal.addEventListener('abort', interrupt, { once: true })
+      const end = (fn: () => void): void => {
+        ac.signal.removeEventListener('abort', interrupt)
+        fn()
+      }
+      s.threads.set(threadId, {
+        notify(method, p) {
+          if (method === 'turn/started') turnId = (p.turn as { id: string }).id
+          else if (method === 'item/started' && (p.item as { type: string }).type === 'agentMessage' && sawText) emit({ type: 'text-break' })
+          else if (method === 'item/agentMessage/delta') {
+            sawText = true
+            emit({ type: 'text', text: String(p.delta) })
+          } else if (method === 'error' && !p.willRetry) lastError = (p.error as { message: string }).message
+          else if (method === 'turn/completed') {
+            const turn = p.turn as { status: string; error: { message: string } | null }
+            if (turn.status === 'completed') end(resolve)
+            else if (turn.status === 'interrupted') end(() => reject(new Error('stopped')))
+            else end(() => reject(new Error(turn.error?.message ?? lastError ?? 'Codex couldn’t finish the reply.')))
+          } else if (method === 'leethelp/closed') end(() => reject(new Error(String(p.message))))
+        },
+        async request(method, p) {
+          if (method !== 'item/tool/call') return declined(method)
+          const r = await callTool(sendToRenderer, req.chatId, ac.signal, String(p.tool), (p.arguments ?? {}) as Record<string, unknown>)
+          return { contentItems: [{ type: 'inputText', text: r.text }], success: !r.isError }
+        }
+      })
+      s.request<{ turn: { id: string } }>('turn/start', {
+        threadId,
+        input: [{ type: 'text', text: turnText(req), text_elements: [] }],
+        model: req.model.model,
+        effort: req.model.effort || null
+      }).then(
+        (r) => {
+          turnId = r.turn.id
+          if (ac.signal.aborted) interrupt()
+        },
+        (e: Error) => end(() => reject(e))
+      )
+    })
   } finally {
-    if (running.get(chatId) === ac) running.delete(chatId)
+    s.threads.delete(threadId)
   }
 }

@@ -2,7 +2,7 @@
 // app: streamed text lands in the open thread, and tool calls are carried out here (see assistant-tools).
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { AssistantEvent, AssistantToolCall, Difficulty } from '@shared/types'
+import type { AssistantEvent, AssistantToolCall, Difficulty, ModelChoice, Provider } from '@shared/types'
 import { useApp } from './store'
 import { activeWorkspace } from './workspace-bridge'
 import { useCustomProblems } from './custom-problems'
@@ -32,8 +32,12 @@ export type Msg = UserMsg | AiMsg
 export interface Thread {
   id: string
   title: string
-  /** The Claude session to resume, so the conversation keeps its memory. */
+  /** The session to resume (Claude session or Codex thread), so the conversation keeps its memory. */
   sessionId?: string
+  /** Which provider sessionId belongs to (older chats: Claude). */
+  provider?: Provider
+  /** The model this chat uses; new chats start on the default from Settings. */
+  model?: ModelChoice
   msgs: Msg[]
   at: number
 }
@@ -54,6 +58,8 @@ interface State {
   stop: () => void
   /** Opens the chat a generated problem came from, scrolled to where it was created. */
   openChatFor: (problemId: string) => boolean
+  /** Changes the model for the open chat (or the next new one); also becomes the default. */
+  setModel: (choice: ModelChoice) => void
 }
 
 const MAX_THREADS = 30
@@ -74,6 +80,11 @@ export const useAssistant = create<State>()(
         return true
       },
       setOpen: (open) => set({ open }),
+      setModel: (model) => {
+        const id = get().activeId
+        if (id && get().threads.some((t) => t.id === id)) update(id, (t) => ({ ...t, model }))
+        useApp.getState().updateSettings({ assistantModel: model })
+      },
       newThread: () => set({ activeId: null }),
       select: (activeId) => set({ activeId }),
       remove: (id) => set((s) => ({ threads: s.threads.filter((t) => t.id !== id), activeId: s.activeId === id ? null : s.activeId })),
@@ -88,15 +99,26 @@ export const useAssistant = create<State>()(
           set((s) => ({ threads: [t, ...s.threads].slice(0, MAX_THREADS), activeId: id }))
         }
         const thread = get().threads.find((t) => t.id === id)!
+        const model = thread.model ?? useApp.getState().settings.assistantModel
+        // A session only resumes with the provider that made it; moving provider sends the transcript instead.
+        const same = !thread.sessionId || (thread.provider ?? 'claude') === model.provider
+        turnProvider.set(id, model.provider)
         update(id, (t) => ({
           ...t,
+          model,
           at: Date.now(),
           msgs: [...t.msgs, { role: 'user', text: msg, at: Date.now() }, { role: 'ai', parts: [], start: Date.now() }]
         }))
         set({ running: id, open: true })
-        window.api.assistantSend({ chatId: id, message: `${describeContext()}\n\n${msg}`, sessionId: thread.sessionId }).catch((e: Error) =>
-          finish(id!, e.message)
-        )
+        window.api
+          .assistantSend({
+            chatId: id,
+            message: `${describeContext()}\n\n${msg}`,
+            model,
+            sessionId: same ? thread.sessionId : undefined,
+            history: same ? undefined : transcript(thread)
+          })
+          .catch((e: Error) => finish(id!, e.message))
       },
 
       stop: () => {
@@ -166,8 +188,30 @@ function finish(id: string, error?: string): void {
   if (useAssistant.getState().running === id) useAssistant.setState({ running: null })
 }
 
+/** Provider of each chat's turn in flight, to record against the session it reports. */
+const turnProvider = new Map<string, Provider>()
+
+/** The chat so far as plain text, for a model that can't resume the previous provider's session. */
+function transcript(t: Thread): string {
+  const lines: string[] = []
+  for (const m of t.msgs) {
+    if (m.role === 'user') lines.push(`User: ${m.text}`)
+    else {
+      const text = m.parts
+        .map((p) => (p.kind === 'text' ? p.text : p.kind === 'problem' ? `[problem card: ${p.title}]` : p.kind === 'result' ? `[${p.title}]` : ''))
+        .filter(Boolean)
+        .join('\n')
+        .trim()
+      if (text) lines.push(`Assistant: ${text}`)
+    }
+  }
+  // The most recent part is what matters if it's long.
+  const all = lines.join('\n\n')
+  return all.length > 12_000 ? `…${all.slice(-12_000)}` : all
+}
+
 function onEvent(id: string, e: AssistantEvent): void {
-  if (e.type === 'session') update(id, (t) => ({ ...t, sessionId: e.id }))
+  if (e.type === 'session') update(id, (t) => ({ ...t, sessionId: e.id, provider: turnProvider.get(id) ?? t.provider }))
   else if (e.type === 'text')
     updateAi(id, (m) => {
       const last = m.parts[m.parts.length - 1]

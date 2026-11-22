@@ -1,20 +1,21 @@
-// Generates practice problems for the trainer with Claude. Output is constrained by a strict JSON
-// schema; the renderer then runs the tests before accepting anything (see custom.ts).
+// Generates practice problems for the trainer. Output is constrained by a strict JSON schema; the
+// renderer then runs the tests before accepting anything (see custom.ts).
 //
-// Two ways in, tried in order:
-//   1. Claude Code: the installed `claude` CLI in print mode, using your existing Claude Code login.
-//   2. An Anthropic API key, saved in the app or from ANTHROPIC_API_KEY.
+// The model picked in Settings decides the way in:
+//   - Claude: the installed `claude` CLI in print mode with your Claude Code login, or failing
+//     that an Anthropic API key (saved in the app or from ANTHROPIC_API_KEY).
+//   - Codex: the installed `codex` CLI's app-server with your Codex login.
 import { app, safeStorage } from 'electron'
-import { execFile, spawn } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { join } from 'node:path'
-import { homedir } from 'node:os'
-import { access, constants, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { findClaude, type Shell } from './cli'
 import Anthropic from '@anthropic-ai/sdk'
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod'
 import { z } from 'zod'
-import type { AiStatus, GenerateProblemRequest, GeneratedProblem } from '@shared/types'
-
-const MODEL = 'claude-opus-5-5'
+import type { AiStatus, GenerateProblemRequest, GeneratedProblem, ModelChoice } from '@shared/types'
+import { findCodex } from './cli'
+import { QUIET_CONFIG, codex } from './codex'
 const keyPath = (): string => join(app.getPath('userData'), 'anthropic-key.bin')
 
 // The key never reaches the renderer: it's encrypted with the OS keychain and only read here.
@@ -26,78 +27,14 @@ async function savedKey(): Promise<string | null> {
   }
 }
 
-export async function status(): Promise<AiStatus> {
+export async function status(choice: ModelChoice): Promise<AiStatus> {
   const claudeCode = !!(await findClaude())
   const key = (await savedKey()) ? 'saved' : process.env.ANTHROPIC_API_KEY ? 'env' : null
+  if (choice.provider === 'codex') return { claudeCode, key, using: (await findCodex()) ? 'codex' : null }
   return { claudeCode, key, using: claudeCode ? 'claude-code' : key ? 'api' : null }
 }
 
 // ── Claude Code ──
-
-export interface Shell {
-  bin: string
-  /** PATH from a login shell: apps opened from Finder get a minimal one. */
-  path: string
-}
-let shell: Promise<Shell | null> | null = null
-
-/** Finds the `claude` CLI the way your terminal would, falling back to common install locations. */
-export function findClaude(): Promise<Shell | null> {
-  return (shell ??= (process.platform === 'win32' ? findClaudeWindows() : (async () => {
-    const sh = process.env.SHELL || '/bin/zsh'
-    const fromShell = await new Promise<{ bin: string; path: string } | null>((resolve) =>
-      execFile(sh, ['-lc', 'printf "%s\\n%s" "$(command -v claude)" "$PATH"'], { timeout: 5000 }, (err, out) => {
-        if (err) return resolve(null)
-        const [bin, path] = out.trim().split('\n')
-        resolve({ bin: bin?.trim() ?? '', path: path?.trim() ?? '' })
-      })
-    )
-    const path = fromShell?.path || process.env.PATH || ''
-    const home = homedir()
-    const candidates = [
-      fromShell?.bin,
-      join(home, '.claude/local/claude'),
-      join(home, '.local/bin/claude'),
-      '/opt/homebrew/bin/claude',
-      '/usr/local/bin/claude',
-      join(home, '.npm-global/bin/claude')
-    ]
-    for (const c of candidates) {
-      if (!c) continue
-      try {
-        await access(c, constants.X_OK)
-        return { bin: c, path: [path, '/opt/homebrew/bin', '/usr/local/bin'].filter(Boolean).join(':') }
-      } catch {
-        // try the next location
-      }
-    }
-    return null
-  })()))
-}
-
-/** Windows: the PATH is already the user's, so ask `where`, then try the usual install locations. */
-async function findClaudeWindows(): Promise<Shell | null> {
-  const path = process.env.PATH || ''
-  const fromWhere = await new Promise<string[]>((resolve) =>
-    execFile('where', ['claude'], { timeout: 5000 }, (err, out) => resolve(err ? [] : out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)))
-  )
-  const home = homedir()
-  // Only .exe: spawning a .cmd shim needs a shell.
-  const candidates = [
-    ...fromWhere.filter((c) => c.toLowerCase().endsWith('.exe')),
-    join(home, '.local', 'bin', 'claude.exe'),
-    join(home, '.claude', 'local', 'claude.exe')
-  ]
-  for (const c of candidates) {
-    try {
-      await access(c, constants.F_OK)
-      return { bin: c, path }
-    } catch {
-      // try the next location
-    }
-  }
-  return null
-}
 
 const CLAUDE_CODE_TIMEOUT = 5 * 60_000
 
@@ -107,7 +44,7 @@ function problemSchemaJson(): string {
   return JSON.stringify(schema)
 }
 
-async function generateWithClaudeCode(cli: Shell, req: GenerateProblemRequest): Promise<GeneratedProblem> {
+async function generateWithClaudeCode(cli: Shell, req: GenerateProblemRequest, choice: ModelChoice): Promise<GeneratedProblem> {
   // An empty working directory, so no project's CLAUDE.md or settings get pulled in.
   const cwd = join(app.getPath('userData'), 'claude-code')
   await mkdir(cwd, { recursive: true })
@@ -116,8 +53,8 @@ async function generateWithClaudeCode(cli: Shell, req: GenerateProblemRequest): 
     '--output-format', 'json',
     '--json-schema', problemSchemaJson(),
     '--system-prompt', SYSTEM,
-    '--model', 'opus',
-    '--effort', 'high',
+    '--model', choice.model,
+    ...(choice.effort ? ['--effort', choice.effort] : []),
     // A pure text task: no tools, MCP servers, user hooks or saved session.
     '--tools', '',
     '--strict-mcp-config',
@@ -163,14 +100,14 @@ async function generateWithClaudeCode(cli: Shell, req: GenerateProblemRequest): 
   return parsed.data
 }
 
-export async function setKey(key: string | null): Promise<AiStatus> {
+export async function setKey(key: string | null, choice: ModelChoice): Promise<AiStatus> {
   const k = key?.trim()
   if (!k) await rm(keyPath(), { force: true })
   else {
     if (!safeStorage.isEncryptionAvailable()) throw new Error('Secure storage is unavailable, so the key can’t be saved.')
     await writeFile(keyPath(), safeStorage.encryptString(k))
   }
-  return status()
+  return status(choice)
 }
 
 export const Problem = z.object({
@@ -237,26 +174,89 @@ ${JSON.stringify(req.retry.previous, null, 2)}
 Fix the problems. Keep the same idea if it is sound, and recompute every expected value.`
 }
 
-export async function generate(req: GenerateProblemRequest): Promise<GeneratedProblem> {
+export async function generate(req: GenerateProblemRequest, choice: ModelChoice): Promise<GeneratedProblem> {
+  if (choice.provider === 'codex') return generateWithCodex(req, choice)
   const cli = await findClaude()
-  if (cli) return generateWithClaudeCode(cli, req)
-  return generateWithApi(req)
+  if (cli) return generateWithClaudeCode(cli, req, choice)
+  return generateWithApi(req, choice)
+}
+
+// ── Codex ──
+
+async function generateWithCodex(req: GenerateProblemRequest, choice: ModelChoice): Promise<GeneratedProblem> {
+  const s = await codex()
+  const cwd = join(app.getPath('userData'), 'codex')
+  await mkdir(cwd, { recursive: true })
+  const { thread } = await s.request<{ thread: { id: string } }>('thread/start', {
+    cwd,
+    model: choice.model,
+    approvalPolicy: 'never',
+    sandbox: 'read-only',
+    baseInstructions: SYSTEM,
+    config: QUIET_CONFIG,
+    ephemeral: true
+  })
+  try {
+    const text = await new Promise<string>((resolve, reject) => {
+      let last = ''
+      const timer = setTimeout(() => reject(new Error('Codex took too long to respond. Try again.')), CLAUDE_CODE_TIMEOUT)
+      const done = (fn: () => void): void => {
+        clearTimeout(timer)
+        fn()
+      }
+      s.threads.set(thread.id, {
+        notify(method, params) {
+          if (method === 'item/completed') {
+            const item = params.item as { type: string; text?: string }
+            if (item.type === 'agentMessage' && item.text) last = item.text
+          } else if (method === 'turn/completed') {
+            const turn = params.turn as { status: string; error: { message: string } | null }
+            if (turn.status === 'completed') done(() => resolve(last))
+            else done(() => reject(new Error(codexError(turn.error?.message ?? `Codex ${turn.status} the request.`))))
+          } else if (method === 'leethelp/closed') done(() => reject(new Error(String(params.message))))
+        }
+      })
+      s.request('turn/start', {
+        threadId: thread.id,
+        input: [{ type: 'text', text: userMessage(req), text_elements: [] }],
+        model: choice.model,
+        effort: choice.effort || null,
+        outputSchema: JSON.parse(problemSchemaJson())
+      }).catch((e: Error) => done(() => reject(new Error(codexError(e.message)))))
+    })
+    let json: unknown
+    try {
+      json = JSON.parse(text)
+    } catch {
+      throw new Error('Codex returned something that isn’t JSON. Try again.')
+    }
+    const parsed = Problem.safeParse(json)
+    if (!parsed.success) throw new Error('Codex’s response didn’t match the problem schema. Try again.')
+    return parsed.data
+  } finally {
+    s.threads.delete(thread.id)
+  }
+}
+
+export function codexError(msg: string): string {
+  if (/401|unauthori[sz]ed|not logged in|login|auth/i.test(msg)) return 'Codex isn’t signed in. Run `codex` in a terminal and log in, then try again.'
+  return msg
 }
 
 // ── Anthropic API ──
 
-async function generateWithApi(req: GenerateProblemRequest): Promise<GeneratedProblem> {
+async function generateWithApi(req: GenerateProblemRequest, choice: ModelChoice): Promise<GeneratedProblem> {
   const apiKey = await savedKey()
   // Without a saved key, fall back to the SDK's own resolution (ANTHROPIC_API_KEY, `ant` profiles).
   const client = apiKey ? new Anthropic({ apiKey }) : new Anthropic()
   try {
     const res = await client.beta.messages.parse({
-      model: MODEL,
+      model: choice.model,
       max_tokens: 16000,
       // If a safety classifier declines, the server retries on a fallback model in the same call.
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
-      output_config: { effort: 'high', format: betaZodOutputFormat(Problem) },
+      output_config: { ...(choice.effort ? { effort: choice.effort as 'high' } : {}), format: betaZodOutputFormat(Problem) },
       system: SYSTEM,
       messages: [{ role: 'user', content: userMessage(req) }]
     })
