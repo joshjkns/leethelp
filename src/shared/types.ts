@@ -243,6 +243,8 @@ export interface AiStatus {
 }
 
 export interface Api {
+  /** process.platform: 'darwin' gets the inset traffic lights and vibrancy. */
+  platform: string
   // auth
   getUser(): Promise<UserStatus>
   /** Opens LeetCode's authorize page in the default browser; the result arrives via onUserChanged. */

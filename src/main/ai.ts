@@ -43,7 +43,7 @@ let shell: Promise<Shell | null> | null = null
 
 /** Finds the `claude` CLI the way your terminal would, falling back to common install locations. */
 export function findClaude(): Promise<Shell | null> {
-  return (shell ??= (async () => {
+  return (shell ??= (process.platform === 'win32' ? findClaudeWindows() : (async () => {
     const sh = process.env.SHELL || '/bin/zsh'
     const fromShell = await new Promise<{ bin: string; path: string } | null>((resolve) =>
       execFile(sh, ['-lc', 'printf "%s\\n%s" "$(command -v claude)" "$PATH"'], { timeout: 5000 }, (err, out) => {
@@ -72,7 +72,31 @@ export function findClaude(): Promise<Shell | null> {
       }
     }
     return null
-  })())
+  })()))
+}
+
+/** Windows: the PATH is already the user's, so ask `where`, then try the usual install locations. */
+async function findClaudeWindows(): Promise<Shell | null> {
+  const path = process.env.PATH || ''
+  const fromWhere = await new Promise<string[]>((resolve) =>
+    execFile('where', ['claude'], { timeout: 5000 }, (err, out) => resolve(err ? [] : out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)))
+  )
+  const home = homedir()
+  // Only .exe: spawning a .cmd shim needs a shell.
+  const candidates = [
+    ...fromWhere.filter((c) => c.toLowerCase().endsWith('.exe')),
+    join(home, '.local', 'bin', 'claude.exe'),
+    join(home, '.claude', 'local', 'claude.exe')
+  ]
+  for (const c of candidates) {
+    try {
+      await access(c, constants.F_OK)
+      return { bin: c, path }
+    } catch {
+      // try the next location
+    }
+  }
+  return null
 }
 
 const CLAUDE_CODE_TIMEOUT = 5 * 60_000

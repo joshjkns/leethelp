@@ -19,7 +19,7 @@ export function Pane({ header, children, className, inset }: { header: ReactNode
       )}
     >
       <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3">
-        {inset && <div className="drag -ml-3 shrink-0 self-stretch" style={{ width: 'calc(90px * var(--tb, 1) + 24px)' }} />}
+        {inset && <div className="drag -ml-3 shrink-0 self-stretch" style={{ width: 'calc(var(--lights, 90px) * var(--tb, 1) + 24px)' }} />}
         {header}
       </div>
       {children}

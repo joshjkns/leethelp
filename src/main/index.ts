@@ -7,6 +7,9 @@ import * as ai from './ai'
 import * as assistant from './assistant'
 
 let win: BrowserWindow | null = null
+const mac = process.platform === 'darwin'
+/** Vibrancy is macOS-only; elsewhere the window always has a solid background. */
+const vibrant = (): boolean => mac && settings.vibrancy
 let settings: Settings = { ...DEFAULT_SETTINGS }
 const settingsPath = (): string => join(app.getPath('userData'), 'settings.json')
 
@@ -21,8 +24,8 @@ async function loadSettings(): Promise<void> {
 function applyWindowSettings(): void {
   nativeTheme.themeSource = settings.theme
   if (!win) return
-  win.setVibrancy(settings.vibrancy ? 'under-window' : null)
-  win.setBackgroundColor(settings.vibrancy ? '#00000000' : nativeTheme.shouldUseDarkColors ? '#151517' : '#fafafa')
+  if (mac) win.setVibrancy(settings.vibrancy ? 'under-window' : null)
+  win.setBackgroundColor(vibrant() ? '#00000000' : nativeTheme.shouldUseDarkColors ? '#151517' : '#fafafa')
 }
 
 function createWindow(): void {
@@ -32,13 +35,18 @@ function createWindow(): void {
     minWidth: 960,
     minHeight: 600,
     show: false,
-    titleBarStyle: 'hiddenInset',
-    // Red button's left edge 18pt in, centre 23.5pt down: centred in the 46pt title strip.
-    // The renderer keeps the controls beside them in screen points (see --tb in App.tsx).
-    trafficLightPosition: { x: 18, y: 16 },
-    vibrancy: settings.vibrancy ? 'under-window' : undefined,
-    visualEffectState: 'followWindow',
-    backgroundColor: settings.vibrancy ? '#00000000' : '#151517',
+    ...(mac
+      ? {
+          titleBarStyle: 'hiddenInset' as const,
+          // Red button's left edge 18pt in, centre 23.5pt down: centred in the 46pt title strip.
+          // The renderer keeps the controls beside them in screen points (see --tb in App.tsx).
+          trafficLightPosition: { x: 18, y: 16 },
+          vibrancy: settings.vibrancy ? ('under-window' as const) : undefined,
+          visualEffectState: 'followWindow' as const
+        }
+      : // Windows and Linux keep the native frame (and its window controls); the menu bar hides until Alt.
+        { autoHideMenuBar: true }),
+    backgroundColor: vibrant() ? '#00000000' : '#151517',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,

@@ -8,6 +8,7 @@ const call = <T>(channel: string, ...args: unknown[]): Promise<T> =>
   })
 
 const api: Api = {
+  platform: process.platform,
   getUser: () => call('user:get'),
   login: () => call('user:login'),
   loginWindow: () => call('user:login-window'),

@@ -8,12 +8,22 @@ files:
   - package.json
   # The assistant runs your installed Claude Code CLI, so the SDK's own platform binaries stay out.
   - "!node_modules/@anthropic-ai/claude-agent-sdk-*/**"
+# The NSIS 3.12 toolset has a native Apple Silicon makensis (the legacy one is Intel-only).
+toolsets:
+  nsis: "1.2.1"
 mac:
   category: public.app-category.developer-tools
   icon: build/icon.png
   target: [dmg]
   identity: "-"
   hardenedRuntime: false
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  artifactName: ${productName}-${version}-setup-${arch}.${ext}
 # LeetCode's browser sign-in redirects to vscode-insiders:// (see openBrowserLogin in src/main/leetcode.ts).
 # The app only makes itself the default handler while a sign-in is pending.
 protocols:

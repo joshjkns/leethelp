@@ -2,7 +2,7 @@
   "name": "leethelp",
   "productName": "LeetHelp",
   "version": "0.1.1",
-  "description": "A fast, clean LeetCode client for macOS",
+  "description": "A fast, clean LeetCode client for macOS and Windows",
   "main": "./out/main/index.js",
   "author": "Josh Jenkins",
   "private": true,
@@ -11,7 +11,7 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "dist": "electron-vite build && electron-builder --mac"
+    "dist": "electron-vite build && electron-builder --mac --win"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "1.12.0",

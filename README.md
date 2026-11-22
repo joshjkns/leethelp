@@ -5,7 +5,7 @@
   <br>LeetHelp
 </h1>
   <p align="center">
-    A fast, clean LeetCode client for macOS.
+    A fast, clean LeetCode client for macOS and Windows.
     <br />
     Read, solve, run and <i>actually submit</i> without opening a browser tab.
     <br />
@@ -158,9 +158,12 @@ use an Anthropic API key, stored encrypted with the system keychain.
 
 ## Download
 
-Get the latest `.dmg` from
-[Releases](https://github.com/joshjkns/leethelp/releases) and drag LeetHelp
-into Applications.
+Get the latest release from
+[Releases](https://github.com/joshjkns/leethelp/releases).
+
+### macOS (Apple Silicon)
+
+Download the `.dmg` and drag LeetHelp into Applications.
 
 LeetHelp is signed ad-hoc but not notarised by Apple, so macOS blocks it the
 first time you open it. To allow it, either:
@@ -172,6 +175,12 @@ first time you open it. To allow it, either:
   ```sh
   xattr -dr com.apple.quarantine /Applications/LeetHelp.app
   ```
+
+### Windows (x64)
+
+Download `LeetHelp-<version>-setup-x64.exe` and run it. It installs for your
+user only, no admin needed. The installer isn't code-signed, so SmartScreen
+may warn you: click **More info → Run anyway**.
 
 ### Signing in
 
@@ -186,7 +195,7 @@ If that doesn't work, open **Settings → Account**. You can sign in in an
 in-app window (email/password), or paste your `LEETCODE_SESSION` and
 `csrftoken` cookies from your browser's DevTools.
 
-Your session stays on your Mac, in the app's own browser partition. It's
+Your session stays on your computer, in the app's own browser partition. It's
 only ever sent to `leetcode.com`.
 
 ## Developing

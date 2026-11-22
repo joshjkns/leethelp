@@ -38,7 +38,9 @@ export function App() {
   useEffect(() => {
     const el = document.documentElement
     el.classList.toggle('dark', dark)
-    el.classList.toggle('no-vibrancy', !settings.vibrancy)
+    el.classList.toggle('no-vibrancy', !settings.vibrancy || window.api.platform !== 'darwin')
+    // Width the native window controls take at the top left: the traffic lights on macOS, nothing elsewhere.
+    el.style.setProperty('--lights', window.api.platform === 'darwin' ? '90px' : '16px')
     el.classList.toggle('flat-panels', !settings.roundedPanels)
     el.dataset.accent = settings.accent
     el.style.zoom = String(settings.uiScale)
@@ -139,7 +141,7 @@ export function App() {
       {/* Icon starts 12pt right of the zoom button; centred on the lights' 23.5pt line. */}
       <div
         className="no-drag fixed z-30"
-        style={{ left: 'calc(90px * var(--tb, 1) - 4px)', top: 'calc(23.5px * var(--tb, 1) - 12px)' }}
+        style={{ left: 'calc(var(--lights, 90px) * var(--tb, 1) - 4px)', top: 'calc(23.5px * var(--tb, 1) - 12px)' }}
       >
         <Tooltip content={settings.sidebarHidden ? 'Show sidebar' : 'Hide sidebar'} shortcut={['⌘', 'B']}>
           <button

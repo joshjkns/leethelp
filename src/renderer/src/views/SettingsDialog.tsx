@@ -117,9 +117,11 @@ function Appearance() {
       <Row label="Show sidebar" hint="Toggle anytime with ⌘B">
         <Switch checked={!s.sidebarHidden} onChange={(v) => set({ sidebarHidden: !v })} />
       </Row>
-      <Row label="Translucent sidebar" hint="macOS vibrancy behind the sidebar">
-        <Switch checked={s.vibrancy} onChange={(vibrancy) => set({ vibrancy })} />
-      </Row>
+      {window.api.platform === 'darwin' && (
+        <Row label="Translucent sidebar" hint="macOS vibrancy behind the sidebar">
+          <Switch checked={s.vibrancy} onChange={(vibrancy) => set({ vibrancy })} />
+        </Row>
+      )}
       <Row label="Interface scale">
         <Slider value={s.uiScale} min={0.85} max={1.25} step={0.05} onChange={(uiScale) => set({ uiScale })} />
         <span className="w-10 text-right text-xs tabular-nums text-muted">{Math.round(s.uiScale * 100)}%</span>
