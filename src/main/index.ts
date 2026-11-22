@@ -31,7 +31,9 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 16 },
+    // Red button's left edge 18pt in, centre 23.5pt down: centred in the 46pt title strip.
+    // The renderer keeps the controls beside them in screen points (see --tb in App.tsx).
+    trafficLightPosition: { x: 18, y: 16 },
     vibrancy: settings.vibrancy ? 'under-window' : undefined,
     visualEffectState: 'followWindow',
     backgroundColor: settings.vibrancy ? '#00000000' : '#151517',

@@ -192,4 +192,6 @@ export interface Api {
   setSettings(patch: Partial<Settings>): Promise<Settings>
   openExternal(url: string): Promise<void>
   onProblemsUpdated(cb: (list: ProblemList) => void): () => void
+  /** Chromium page zoom (⌘+ / ⌘−), separate from the app's own interface scale. */
+  getZoomFactor(): number
 }

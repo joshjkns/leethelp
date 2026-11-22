@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webFrame } from 'electron'
 import type { Api, ProblemList } from '@shared/types'
 
 // IPC errors arrive as "Error invoking remote method 'x': Error: msg" — keep just the message.
@@ -22,6 +22,7 @@ const api: Api = {
   getSettings: () => call('settings:get'),
   setSettings: (patch) => call('settings:set', patch),
   openExternal: (url) => call('shell:open', url),
+  getZoomFactor: () => webFrame.getZoomFactor(),
   onProblemsUpdated: (cb) => {
     const h = (_e: unknown, l: ProblemList): void => cb(l)
     ipcRenderer.on('problems:updated', h)

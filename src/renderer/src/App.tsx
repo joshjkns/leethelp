@@ -35,6 +35,16 @@ export function App() {
     el.style.zoom = String(settings.uiScale)
   }, [dark, settings.accent, settings.vibrancy, settings.uiScale])
 
+  // The traffic lights are native and ignore page zoom and the interface scale, so anything placed
+  // beside them is sized in screen points: CSS px × --tb. Zooming fires a resize, so recompute then.
+  useEffect(() => {
+    const apply = (): void =>
+      document.documentElement.style.setProperty('--tb', String(1 / (window.api.getZoomFactor() * settings.uiScale)))
+    apply()
+    window.addEventListener('resize', apply)
+    return () => window.removeEventListener('resize', apply)
+  }, [settings.uiScale])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (!e.metaKey) return
@@ -72,7 +82,11 @@ export function App() {
         </motion.div>
         <main className={`relative flex min-w-0 flex-1 flex-col bg-bg ${settings.sidebarHidden ? '' : 'border-l border-border'}`}>
           {/* With the sidebar hidden, reserve a title-bar strip so content clears the traffic lights. */}
-          {settings.sidebarHidden ? <div className="drag h-9 shrink-0" /> : <div className="drag absolute inset-x-0 top-0 h-3" />}
+          {settings.sidebarHidden ? (
+            <div className="drag shrink-0" style={{ height: 'calc(46px * var(--tb, 1))' }} />
+          ) : (
+            <div className="drag absolute inset-x-0 top-0 h-3" />
+          )}
           {/* The workspace stays mounted so the editor, scroll position and console survive view switches. */}
           {slug && (
             <div className={view === 'workspace' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
@@ -96,7 +110,11 @@ export function App() {
           )}
         </main>
       </div>
-      <div className="no-drag fixed left-[84px] top-[11px] z-30">
+      {/* Icon starts 12pt right of the zoom button; centred on the lights' 23.5pt line. */}
+      <div
+        className="no-drag fixed z-30"
+        style={{ left: 'calc(90px * var(--tb, 1) - 4px)', top: 'calc(23.5px * var(--tb, 1) - 12px)' }}
+      >
         <Tooltip content={settings.sidebarHidden ? 'Show sidebar' : 'Hide sidebar'} shortcut={['⌘', 'B']}>
           <button
             onClick={() => updateSettings({ sidebarHidden: !settings.sidebarHidden })}

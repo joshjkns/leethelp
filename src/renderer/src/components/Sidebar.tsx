@@ -43,7 +43,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="drag flex h-full w-[228px] shrink-0 flex-col bg-[var(--sidebar)] pt-[46px]">
+    <aside className="drag flex h-full w-[228px] shrink-0 flex-col bg-[var(--sidebar)]" style={{ paddingTop: 'calc(46px * var(--tb, 1))' }}>
       <div className="px-3">
         <button
           onClick={() => setPaletteOpen(true)}
