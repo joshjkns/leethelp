@@ -85,6 +85,10 @@ today's daily challenge from the sidebar.
 
 ### Lists
 
+<p align="center">
+  <img src="docs/lists.png" alt="Study lists" width="900">
+</p>
+
 NeetCode 150, Blind 75, Grind 75, LeetCode 75 and Top Interview 150, split
 into their topic sections. Each list shows your progress (also in the
 sidebar), a button that opens your next unsolved problem, and a toggle to
@@ -118,6 +122,10 @@ back to the model for a fix.
 
 ### Assistant
 
+<p align="center">
+  <img src="docs/assistant.png" alt="The assistant beside a generated problem" width="900">
+</p>
+
 A chat panel (<kbd>⌘</kbd> <kbd>J</kbd>) that's part of the app rather than
 beside it. It sees the page and problem you're on, and can search and open
 problems, write new ones and open them, read your code, run it on edge cases,
@@ -128,10 +136,19 @@ touches your code when you ask. Drag its left edge to resize it. Every
 problem it writes has a **Chat** button that takes you back to the
 conversation, scrolled to where the problem was made.
 
-Generation and the assistant run your installed
-[Claude Code](https://docs.claude.com/en/docs/claude-code) CLI with its login,
-so install it and run `claude` once to sign in. The Generate button can also
-use an Anthropic API key, stored encrypted with the system keychain.
+<p align="center">
+  <img src="docs/models.png" alt="Model picker" width="400">
+</p>
+
+Generation and the assistant run on an agent CLI installed on your computer,
+with its own login: [Claude Code](https://docs.claude.com/en/docs/claude-code)
+(run `claude` once to sign in) or [Codex](https://developers.openai.com/codex/cli)
+(run `codex` once to sign in). Pick the model and reasoning effort in
+**Settings → Models**, or per chat from the picker in the assistant's input.
+Both model lists come from the CLIs, so new models show up on their own. A
+chat can switch between Claude and Codex mid-conversation, and the new model
+is given the conversation so far. The Generate button can also use an
+Anthropic API key, stored encrypted with the system keychain.
 
 ### Customisation
 
