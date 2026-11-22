@@ -24,7 +24,8 @@ export function CodeEditor({
   onRun,
   onSubmit,
   busy,
-  signedIn
+  signedIn,
+  local
 }: {
   detail: ProblemDetail | null
   lang: string
@@ -36,6 +37,8 @@ export function CodeEditor({
   onSubmit: () => void
   busy: 'run' | 'submit' | null
   signedIn: boolean
+  /** Judged locally (generated problems) rather than by LeetCode. */
+  local?: boolean
 }) {
   const s = useApp((st) => st.settings)
   const dark = useIsDark()
@@ -77,7 +80,7 @@ export function CodeEditor({
               Run
             </Button>
           </Tooltip>
-          <Tooltip content={signedIn ? 'Submit to LeetCode' : 'Sign in to submit'} shortcut={['⌘', '↵']}>
+          <Tooltip content={local ? 'Submit against all tests' : signedIn ? 'Submit to LeetCode' : 'Sign in to submit'} shortcut={['⌘', '↵']}>
             <Button size="sm" variant="success" onClick={onSubmit} disabled={!detail || !!busy}>
               {busy === 'submit' ? <Loader2 className="animate-spin" /> : <CloudUpload />}
               Submit

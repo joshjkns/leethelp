@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webFrame } from 'electron'
-import type { Api, ProblemList } from '@shared/types'
+import type { Api, AssistantEvent, AssistantToolCall, ProblemList } from '@shared/types'
 
 // IPC errors arrive as "Error invoking remote method 'x': Error: msg" — keep just the message.
 const call = <T>(channel: string, ...args: unknown[]): Promise<T> =>
@@ -23,6 +23,22 @@ const api: Api = {
   setSettings: (patch) => call('settings:set', patch),
   openExternal: (url) => call('shell:open', url),
   getZoomFactor: () => webFrame.getZoomFactor(),
+  getAiStatus: () => call('ai:status'),
+  setAiKey: (key) => call('ai:key', key),
+  generateProblem: (req) => call('ai:generate', req),
+  assistantSend: (req) => call('assistant:send', req),
+  assistantStop: (chatId) => call('assistant:stop', chatId),
+  assistantToolResult: (callId, result) => call('assistant:tool-result', callId, result),
+  onAssistantEvent: (cb) => {
+    const h = (_e: unknown, m: { chatId: string; event: AssistantEvent }): void => cb(m.chatId, m.event)
+    ipcRenderer.on('assistant:event', h)
+    return () => ipcRenderer.removeListener('assistant:event', h)
+  },
+  onAssistantTool: (cb) => {
+    const h = (_e: unknown, c: AssistantToolCall): void => cb(c)
+    ipcRenderer.on('assistant:tool', h)
+    return () => ipcRenderer.removeListener('assistant:tool', h)
+  },
   onProblemsUpdated: (cb) => {
     const h = (_e: unknown, l: ProblemList): void => cb(l)
     ipcRenderer.on('problems:updated', h)

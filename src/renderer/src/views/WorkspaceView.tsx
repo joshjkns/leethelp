@@ -6,6 +6,7 @@ import type { ProblemDetail, RunResult } from '@shared/types'
 import { Description } from '@/components/workspace/Description'
 import { CodeEditor } from '@/components/workspace/CodeEditor'
 import { Console, type TestCase } from '@/components/workspace/Console'
+import { registerWorkspace } from '@/lib/workspace-bridge'
 
 function parseCases(detail: ProblemDetail): TestCase[] {
   const lines = detail.exampleTestcases.split('\n')
@@ -84,33 +85,38 @@ export function WorkspaceView() {
     setCode(detail.snippets.find((s) => s.langSlug === lang)?.code ?? '')
   }
 
-  const execute = async (kind: 'run' | 'submit'): Promise<void> => {
-    if (!detail || busy) return
+  const execute = async (kind: 'run' | 'submit'): Promise<RunResult | null> => {
+    if (!detail || busy) return null
     if (!useApp.getState().user.signedIn) {
       toast('Sign in to run code', {
         description: 'Running and submitting go through your LeetCode account.',
         action: { label: 'Sign in', onClick: () => window.api.login().then(() => refreshUser()) }
       })
-      return
+      return null
     }
     setBusy(kind)
     setConsoleTab('result')
     setResult(null)
     try {
-      const input = cases.map((c) => c.values.join('\n')).join('\n')
+      // Refs, so code the assistant just wrote is used even before React re-renders.
+      const src = codeRef.current
+      const input = casesRef.current.map((c) => c.values.join('\n')).join('\n')
       const r =
         kind === 'run'
-          ? await window.api.run(detail.slug, detail.questionId, lang, code, input)
-          : await window.api.submit(detail.slug, detail.questionId, lang, code)
+          ? await window.api.run(detail.slug, detail.questionId, lang, src, input)
+          : await window.api.submit(detail.slug, detail.questionId, lang, src)
       setResult(r)
+      resultRef.current = r
       if (kind === 'submit' && r.statusCode === 10) {
         toast.success('Accepted', { description: `${detail.title} — ${r.runtime ?? ''} · beats ${r.runtimePercentile?.toFixed(1) ?? '–'}%` })
         setDetail((d) => (d ? { ...d, status: 'ac' } : d))
         refreshProfile()
       }
+      return r
     } catch (e) {
       toast.error((e as Error).message)
       setConsoleTab('cases')
+      throw e
     } finally {
       setBusy(null)
     }
@@ -119,6 +125,38 @@ export function WorkspaceView() {
   // ⌘' run, ⌘↵ submit (capture phase so Monaco doesn't eat them)
   const execRef = useRef(execute)
   execRef.current = execute
+
+  // Let the assistant read and drive this workspace.
+  const codeRef = useRef(code)
+  codeRef.current = code
+  const casesRef = useRef(cases)
+  casesRef.current = cases
+  const resultRef = useRef(result)
+  resultRef.current = result
+  const onCodeRef = useRef(onCode)
+  onCodeRef.current = onCode
+  useEffect(() => {
+    if (!detail) return
+    return registerWorkspace({
+      kind: 'leetcode',
+      id: detail.slug,
+      title: `${detail.id}. ${detail.title}`,
+      lang,
+      params: detail.params,
+      getCode: () => codeRef.current,
+      setCode: (c) => {
+        codeRef.current = c
+        onCodeRef.current(c)
+      },
+      getCases: () => casesRef.current,
+      setCases: (c) => {
+        casesRef.current = c
+        setCases(c)
+      },
+      lastResult: () => resultRef.current,
+      run: () => execRef.current('run')
+    })
+  }, [detail, lang])
   useEffect(() => {
     if (!active) return
     const onKey = (e: KeyboardEvent): void => {
@@ -126,11 +164,11 @@ export function WorkspaceView() {
       if (e.key === "'") {
         e.preventDefault()
         e.stopPropagation()
-        execRef.current('run')
+        execRef.current('run').catch(() => {})
       } else if (e.key === 'Enter') {
         e.preventDefault()
         e.stopPropagation()
-        execRef.current('submit')
+        execRef.current('submit').catch(() => {})
       }
     }
     window.addEventListener('keydown', onKey, true)
@@ -156,8 +194,8 @@ export function WorkspaceView() {
             code={code}
             onCode={onCode}
             onReset={resetCode}
-            onRun={() => execute('run')}
-            onSubmit={() => execute('submit')}
+            onRun={() => execute('run').catch(() => {})}
+            onSubmit={() => execute('submit').catch(() => {})}
             busy={busy}
             signedIn={user.signedIn}
           />

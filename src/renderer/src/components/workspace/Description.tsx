@@ -21,7 +21,19 @@ import { Button } from '../ui/button'
 import { Tooltip } from '../ui/tooltip'
 import { Pane, PaneTab } from './Pane'
 
-export function Description({ detail, error }: { detail: ProblemDetail | null; error: string | null }) {
+/** `local` is for problems that aren't on LeetCode (generated ones): no related tab, likes or external links. */
+export function Description({
+  detail,
+  error,
+  local,
+  actions
+}: {
+  detail: ProblemDetail | null
+  error: string | null
+  local?: boolean
+  /** Extra buttons for the right of the header. */
+  actions?: React.ReactNode
+}) {
   const [tab, setTab] = useState<'desc' | 'related'>('desc')
   const exploreFrom = useApp((s) => s.exploreFrom)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -33,14 +45,17 @@ export function Description({ detail, error }: { detail: ProblemDetail | null; e
           <PaneTab active={tab === 'desc'} onClick={() => setTab('desc')}>
             <BookOpen /> Description
           </PaneTab>
-          <PaneTab active={tab === 'related'} onClick={() => setTab('related')}>
-            <Waypoints /> Related
-            {detail && detail.similar.length > 0 && (
-              <span className="rounded bg-surface-2 px-1 text-[10px] tabular-nums text-subtle">{detail.similar.length}</span>
-            )}
-          </PaneTab>
+          {!local && (
+            <PaneTab active={tab === 'related'} onClick={() => setTab('related')}>
+              <Waypoints /> Related
+              {detail && detail.similar.length > 0 && (
+                <span className="rounded bg-surface-2 px-1 text-[10px] tabular-nums text-subtle">{detail.similar.length}</span>
+              )}
+            </PaneTab>
+          )}
           <div className="flex-1" />
-          {detail && (
+          {actions}
+          {detail && !local && (
             <>
               <Tooltip content="Explore in graph">
                 <Button variant="ghost" size="iconSm" onClick={() => exploreFrom(detail.slug)}>
@@ -67,7 +82,7 @@ export function Description({ detail, error }: { detail: ProblemDetail | null; e
         ) : !detail ? (
           <DescSkeleton />
         ) : tab === 'desc' ? (
-          <DescBody detail={detail} />
+          <DescBody detail={detail} local={local} />
         ) : (
           <Related detail={detail} />
         )}
@@ -76,7 +91,7 @@ export function Description({ detail, error }: { detail: ProblemDetail | null; e
   )
 }
 
-function DescBody({ detail }: { detail: ProblemDetail }) {
+function DescBody({ detail, local }: { detail: ProblemDetail; local?: boolean }) {
   const openProblem = useApp((s) => s.openProblem)
   const html = useMemo(() => (detail.content ? DOMPurify.sanitize(detail.content) : ''), [detail.content])
 
@@ -92,7 +107,8 @@ function DescBody({ detail }: { detail: ProblemDetail }) {
   return (
     <div className="px-6 py-5">
       <h1 className="select-text text-xl font-semibold tracking-tight">
-        {detail.id}. {detail.title}
+        {detail.id && `${detail.id}. `}
+        {detail.title}
       </h1>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <DifficultyPill difficulty={detail.difficulty} />
@@ -106,9 +122,11 @@ function DescBody({ detail }: { detail: ProblemDetail }) {
             <CircleDashed className="size-3.5" /> Attempted
           </span>
         )}
-        <span className="flex items-center gap-1 text-xs text-subtle">
-          <ThumbsUp className="size-3" /> {detail.likes.toLocaleString()}
-        </span>
+        {!local && (
+          <span className="flex items-center gap-1 text-xs text-subtle">
+            <ThumbsUp className="size-3" /> {detail.likes.toLocaleString()}
+          </span>
+        )}
         {detail.acRate && <span className="text-xs text-subtle">· {detail.acRate} acceptance</span>}
       </div>
       {detail.tags.length > 0 && (

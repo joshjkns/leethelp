@@ -173,6 +173,72 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebarHidden: false
 }
 
+/** What to generate a practice problem about. */
+export interface GenerateProblemRequest {
+  topic: string
+  difficulty: Difficulty
+  /** A previous attempt that failed verification, and why, so the model can fix it. */
+  retry?: { previous: GeneratedProblem; errors: string[] }
+}
+
+/**
+ * A generated LeetCode-style problem, exactly as the model returns it. Test values are JSON
+ * strings because a strict schema can't describe arbitrary values; the renderer parses them and
+ * runs the reference solution against every test before accepting the problem.
+ */
+export interface GeneratedProblem {
+  title: string
+  difficulty: Difficulty
+  tags: string[]
+  statement: string
+  constraints: string[]
+  hints: string[]
+  followUp: string
+  fn: string
+  params: { name: string; type: string }[]
+  returnType: string
+  solution: string
+  unordered: boolean
+  tests: { argsJson: string; expectedJson: string; example: boolean; explanation: string }[]
+}
+
+/** Streamed from the assistant's agent loop in the main process. */
+export type AssistantEvent =
+  | { type: 'session'; id: string }
+  | { type: 'text'; text: string }
+  /** A new text block started after tool calls: start a new paragraph. */
+  | { type: 'text-break' }
+  | { type: 'done'; error?: string; costUsd?: number }
+
+/** A tool call the assistant made; the renderer carries it out against the live app and replies. */
+export interface AssistantToolCall {
+  chatId: string
+  callId: string
+  name: string
+  input: Record<string, unknown>
+}
+
+export interface AssistantToolResult {
+  text: string
+  isError?: boolean
+}
+
+export interface AssistantSendRequest {
+  chatId: string
+  message: string
+  /** Resume this Claude session so the conversation keeps its memory. */
+  sessionId?: string
+}
+
+export interface AiStatus {
+  /** The `claude` CLI is installed; it's used first, with your Claude Code login. */
+  claudeCode: boolean
+  /** Where an Anthropic API key comes from: saved in the app (encrypted), the environment, or nowhere. */
+  key: 'saved' | 'env' | null
+  /** What a generation will actually use. */
+  using: 'claude-code' | 'api' | null
+}
+
 export interface Api {
   // auth
   getUser(): Promise<UserStatus>
@@ -192,6 +258,15 @@ export interface Api {
   setSettings(patch: Partial<Settings>): Promise<Settings>
   openExternal(url: string): Promise<void>
   onProblemsUpdated(cb: (list: ProblemList) => void): () => void
+  // AI problem generation
+  getAiStatus(): Promise<AiStatus>
+  setAiKey(key: string | null): Promise<AiStatus>
+  generateProblem(req: GenerateProblemRequest): Promise<GeneratedProblem>
   /** Chromium page zoom (⌘+ / ⌘−), separate from the app's own interface scale. */
   getZoomFactor(): number
+  assistantSend(req: AssistantSendRequest): Promise<void>
+  assistantStop(chatId: string): Promise<void>
+  assistantToolResult(callId: string, result: AssistantToolResult): Promise<void>
+  onAssistantEvent(cb: (chatId: string, e: AssistantEvent) => void): () => void
+  onAssistantTool(cb: (call: AssistantToolCall) => void): () => void
 }

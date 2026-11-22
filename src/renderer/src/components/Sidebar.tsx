@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Code2, Flame, GraduationCap, LayoutList, ListChecks, LogIn, Network, Search, Settings2, TrendingUp } from 'lucide-react'
+import { Code2, Flame, GraduationCap, LayoutList, ListChecks, LogIn, MessageSquare, Network, Search, Settings2, Sparkles, TrendingUp } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useApp, type View } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -9,6 +9,7 @@ import { DifficultyPill } from './DifficultyPill'
 import { toast } from 'sonner'
 import { MiniRing } from './MiniRing'
 import { STUDY_LISTS, listProgress, listSlugs } from '@/lib/lists'
+import { useAssistant } from '@/lib/assistant'
 
 const NAV: { view: View; label: string; icon: typeof Code2; key: string }[] = [
   { view: 'problems', label: 'Problems', icon: LayoutList, key: '1' },
@@ -16,7 +17,8 @@ const NAV: { view: View; label: string; icon: typeof Code2; key: string }[] = [
   { view: 'workspace', label: 'Workspace', icon: Code2, key: '3' },
   { view: 'graph', label: 'Explore', icon: Network, key: '4' },
   { view: 'progress', label: 'Progress', icon: TrendingUp, key: '5' },
-  { view: 'learn', label: 'Learn', icon: GraduationCap, key: '6' }
+  { view: 'learn', label: 'Learn', icon: GraduationCap, key: '6' },
+  { view: 'generated', label: 'Generated', icon: Sparkles, key: '7' }
 ]
 
 export function Sidebar() {
@@ -61,7 +63,8 @@ export function Sidebar() {
       <nav className="no-drag mt-4 flex flex-col gap-0.5 px-2">
         {NAV.map(({ view: v, label, icon: Icon, key }) => {
           const disabled = v === 'workspace' && !slug
-          const active = view === v
+          // An open generated problem belongs to Generated.
+          const active = view === v || (v === 'generated' && view === 'custom')
           return (
             <button
               key={v}
@@ -138,9 +141,10 @@ export function Sidebar() {
             <LogIn className="size-4" /> Sign in to LeetCode
           </button>
         )}
+        <AssistantButton />
         <button
           onClick={() => setSettingsOpen(true)}
-          className="mt-1.5 flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-muted transition-colors hover:text-fg"
+          className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-muted transition-colors hover:text-fg"
         >
           <Settings2 className="size-4" /> Settings
           <span className="ml-auto">
@@ -149,6 +153,27 @@ export function Sidebar() {
         </button>
       </div>
     </aside>
+  )
+}
+
+function AssistantButton() {
+  const open = useAssistant((s) => s.open)
+  const running = useAssistant((s) => s.running)
+  const setOpen = useAssistant((s) => s.setOpen)
+  return (
+    <button
+      onClick={() => setOpen(!open)}
+      className={cn(
+        'mt-1.5 flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-colors',
+        open ? 'text-fg' : 'text-muted hover:text-fg'
+      )}
+    >
+      <MessageSquare className="size-4" /> Assistant
+      {running && <span className="size-1.5 animate-pulse rounded-full bg-accent" />}
+      <span className="ml-auto">
+        <Kbd>⌘J</Kbd>
+      </span>
+    </button>
   )
 }
 

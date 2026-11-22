@@ -1,6 +1,7 @@
 import { Command } from 'cmdk'
 import { useMemo, useState } from 'react'
-import { CheckCircle2, CircleDashed, Dice5, GraduationCap, LayoutList, ListChecks, Moon, Network, PanelLeft, Search, Settings2, TrendingUp } from 'lucide-react'
+import { CheckCircle2, CircleDashed, Dice5, GraduationCap, LayoutList, ListChecks, MessageSquare, Moon, Network, PanelLeft, Search, Settings2, Sparkles, TrendingUp } from 'lucide-react'
+import { useAssistant } from '@/lib/assistant'
 import { useApp } from '@/lib/store'
 import type { ProblemSummary } from '@shared/types'
 import { Dialog } from './ui/dialog'
@@ -105,6 +106,8 @@ export function CommandPalette() {
                 { icon: Network, label: 'Explore topic map', run: () => exploreFrom(null) },
                 { icon: TrendingUp, label: 'Go to Progress', run: () => setView('progress') },
                 { icon: GraduationCap, label: 'Learn TypeScript', run: () => setView('learn') },
+                { icon: Sparkles, label: 'Generated problems', run: () => setView('generated') },
+                { icon: MessageSquare, label: 'Open the assistant', run: () => useAssistant.getState().setOpen(true) },
                 {
                   icon: Moon,
                   label: 'Toggle dark mode',

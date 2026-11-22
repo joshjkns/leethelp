@@ -9,12 +9,14 @@ import {
   type UserStatus
 } from '@shared/types'
 
-export type View = 'problems' | 'lists' | 'workspace' | 'graph' | 'progress' | 'learn'
+export type View = 'problems' | 'lists' | 'workspace' | 'graph' | 'progress' | 'learn' | 'generated' | 'custom'
 
 interface State {
   view: View
   slug: string | null
   listId: string
+  /** The AI-generated problem open in the custom workspace. */
+  customId: string | null
   graphSeed: string | null
   settingsOpen: boolean
   paletteOpen: boolean
@@ -30,6 +32,7 @@ interface State {
   setView: (v: View) => void
   openProblem: (slug: string) => void
   openList: (id: string) => void
+  openCustom: (id: string) => void
   exploreFrom: (slug: string | null) => void
   setSettingsOpen: (o: boolean) => void
   setPaletteOpen: (o: boolean) => void
@@ -46,6 +49,7 @@ export const useApp = create<State>((set, get) => ({
   view: 'problems',
   slug: localStorage.getItem('lastSlug'),
   listId: localStorage.getItem('lastList') ?? 'neetcode150',
+  customId: null,
   graphSeed: null,
   settingsOpen: false,
   paletteOpen: false,
@@ -67,6 +71,7 @@ export const useApp = create<State>((set, get) => ({
     localStorage.setItem('lastList', listId)
     set({ listId, view: 'lists' })
   },
+  openCustom: (customId) => set({ customId, view: 'custom', paletteOpen: false }),
   exploreFrom: (slug) => set({ graphSeed: slug, view: 'graph', paletteOpen: false }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),

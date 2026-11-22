@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { readFile, writeFile } from 'node:fs/promises'
 import { DEFAULT_SETTINGS, type Settings } from '@shared/types'
 import * as lc from './leetcode'
+import * as ai from './ai'
+import * as assistant from './assistant'
 
 let win: BrowserWindow | null = null
 let settings: Settings = { ...DEFAULT_SETTINGS }
@@ -96,6 +98,13 @@ function registerIpc(): void {
     await writeFile(settingsPath(), JSON.stringify(settings, null, 2))
     return settings
   })
+  ipcMain.handle('ai:status', () => ai.status())
+  ipcMain.handle('ai:key', (_e, key: string | null) => ai.setKey(key))
+  ipcMain.handle('ai:generate', (_e, req) => ai.generate(req))
+  // The chat runs in the background and streams events; the call returns straight away.
+  ipcMain.handle('assistant:send', (_e, req) => void assistant.send(req, send))
+  ipcMain.handle('assistant:stop', (_e, chatId: string) => assistant.stop(chatId))
+  ipcMain.handle('assistant:tool-result', (_e, callId: string, result) => assistant.toolResult(callId, result))
   ipcMain.handle('shell:open', (_e, url: string) => {
     if (/^https:\/\//.test(url)) shell.openExternal(url)
   })

@@ -14,6 +14,10 @@ import { GraphView } from '@/views/GraphView'
 import { ProgressView } from '@/views/ProgressView'
 import { ListsView } from '@/views/ListsView'
 import { LearnView } from '@/views/LearnView'
+import { CustomWorkspaceView } from '@/views/CustomWorkspaceView'
+import { GeneratedView } from '@/views/GeneratedView'
+import { AssistantPanel, useAssistantWidth } from '@/components/assistant/AssistantPanel'
+import { initAssistant, useAssistant } from '@/lib/assistant'
 
 export function App() {
   const init = useApp((s) => s.init)
@@ -21,10 +25,14 @@ export function App() {
   const updateSettings = useApp((s) => s.updateSettings)
   const view = useApp((s) => s.view)
   const slug = useApp((s) => s.slug)
+  const assistantOpen = useAssistant((s) => s.open)
+  const assistantWidth = useAssistantWidth((s) => s.width)
+  const resizingAssistant = useAssistantWidth((s) => s.resizing)
   const dark = useIsDark()
 
   useEffect(() => {
     init()
+    initAssistant()
   }, [init])
 
   useEffect(() => {
@@ -58,9 +66,13 @@ export function App() {
       } else if (e.key === ',') {
         e.preventDefault()
         s.setSettingsOpen(true)
-      } else if (['1', '2', '3', '4', '5', '6'].includes(e.key)) {
+      } else if (e.key === 'j') {
         e.preventDefault()
-        const v = (['problems', 'lists', 'workspace', 'graph', 'progress', 'learn'] as const)[Number(e.key) - 1]
+        const a = useAssistant.getState()
+        a.setOpen(!a.open)
+      } else if (['1', '2', '3', '4', '5', '6', '7'].includes(e.key)) {
+        e.preventDefault()
+        const v = (['problems', 'lists', 'workspace', 'graph', 'progress', 'learn', 'generated'] as const)[Number(e.key) - 1]
         if (v === 'workspace' && !s.slug) return
         s.setView(v)
       }
@@ -106,9 +118,19 @@ export function App() {
               {view === 'graph' && <GraphView />}
               {view === 'progress' && <ProgressView />}
               {view === 'learn' && <LearnView />}
+              {view === 'generated' && <GeneratedView />}
+              {view === 'custom' && <CustomWorkspaceView />}
             </motion.div>
           )}
         </main>
+        <motion.div
+          className="shrink-0 overflow-hidden"
+          initial={false}
+          animate={{ width: assistantOpen ? assistantWidth : 0 }}
+          transition={resizingAssistant ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 40 }}
+        >
+          {assistantOpen && <AssistantPanel />}
+        </motion.div>
       </div>
       {/* Icon starts 12pt right of the zoom button; centred on the lights' 23.5pt line. */}
       <div
